@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:offline": "node source/plan-suite/build.mjs",
+    "build:vercel": "node source/plan-suite/build.mjs --vercel"
+  },
+  "engines": {
+    "node": "22.x"
+  },
+  "devDependencies": {
+    "pdf-lib": "1.17.1"
+  }
+}

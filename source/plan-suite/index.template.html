@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>六款产品 · 计划书工作台</title>
+  <!-- STYLE -->
+  <style>
+    .suite-product { margin-bottom: 16px; }
+    .suite-product select { width: 100%; min-height: 44px; padding: 6px 10px; color: var(--pine); border: 1px solid var(--line); border-radius: 9px; background: #faf8f3; }
+    .suite-label { display: block; font-size: 14px; font-weight: 700; margin: 0 0 8px; }
+    .suite-heading { margin-top: 8px; }
+    .suite-heading h1 { font-size: clamp(25px, 5vw, 44px); }
+    .suite-withdraw { display: grid; grid-template-columns: minmax(70px,.7fr) minmax(92px,1fr) minmax(80px,.9fr) auto; gap: 6px; margin: 9px 0; }
+    .suite-withdraw :is(input,select,button) { min-width: 0; min-height: 37px; width: 100%; padding-inline: 5px; border: 1px solid var(--line); border-radius: 7px; background: #fffdfa; color: var(--pine); font-size: 13px; }
+    .suite-dialog { width: min(560px, calc(100% - 22px)); border: 1px solid var(--line); padding: 18px; border-radius: 18px; background: var(--white); color: var(--ink); }
+    .suite-dialog::backdrop { background: #171d1a55; }
+    .suite-dialog .toolbar-actions { justify-content: space-between; flex-wrap: wrap; margin: 10px 0; }
+    .suite-dialog[open] { display: flex; flex-direction: column; max-height: calc(100vh - 24px); max-height: calc(100dvh - 24px); overflow: hidden; }
+    .suite-dialog > :not(#column-choices) { flex-shrink: 0; }
+    #column-choices { min-height: 0; overflow: auto; overscroll-behavior: contain; padding: 4px 2px; }
+    .suite-dialog .settings-actions { border-top: 1px solid var(--line); padding-top: 10px; margin-bottom: 0; }
+    .suite-choices { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; margin: 6px 0 12px; }
+    .suite-choices label { display: flex; align-items: start; gap: 5px; padding: 7px 4px; font-size: 14px; }
+    .suite-choices input { margin: 3px 0 0; accent-color: var(--pine); }
+    .suite-notes { white-space: pre-line; margin: 18px 0 24px; line-height: 1.6; font-size: 12px; color: var(--muted); }
+    .suite-table { overflow: auto; max-height: 68vh; }
+    .suite-table table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+    .suite-table thead { position: sticky; top: 0; background: var(--pine); color: white; }
+    .suite-table :is(th,td) { padding: 8px 11px; white-space: nowrap; text-align: right; font-size: 13px; border-bottom: 1px solid var(--line); }
+    .suite-table tbody tr:nth-child(even) { background: #faf7f1; }
+    .suite-table tbody tr.key-year { background: var(--sand); }
+    .suite-table-hint { display: none; }
+    .suite-withdraw-note { margin: 8px 0; }
+    @media (max-width: 680px) {
+      .wrap { width: min(100% - 24px, 520px); }
+      .workspace { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+      .suite-heading { flex-direction: column; align-items: flex-start; gap: 0; }
+      .suite-heading .text-button { max-width: none; padding-inline: 0; }
+      .field { grid-template-columns: minmax(0, 1fr) minmax(0, 1.12fr); }
+      .field > select, .unit-field { height: 44px; }
+      .unit-field input { height: 100%; }
+      .primary, .secondary, .text-button, .presets button { min-height: 44px; }
+      .presets button { flex: 1 1 auto; }
+      .suite-withdraw { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+      .suite-withdraw :is(input,select,button) { min-height: 44px; padding-inline: 7px; font-size: 16px; }
+      .suite-withdraw select { grid-area: 1 / 2; }
+      .form-actions { display: grid; gap: 10px; }
+      .form-actions .primary { width: 100%; }
+      .preview-toolbar { flex-wrap: wrap; }
+      .preview-toolbar .toolbar-actions { flex: 1 0 100%; display: grid; grid-template-columns: 1fr 1fr; }
+      .pdf-actions strong { flex: 1 0 100%; }
+      .pdf-actions :is(button,a) { flex: 1 1 auto; justify-content: center; }
+      .suite-table-hint { display: block; padding: 9px 13px; font-size: 12px; color: var(--muted); }
+      .suite-table { max-height: 58vh; }
+      .suite-table table { border-collapse: separate; border-spacing: 0; }
+      .suite-table :is(th,td) { padding-inline: 8px; }
+      .suite-table .policy-year { position: sticky; left: 0; min-width: 67px; text-align: center; }
+      .suite-table thead { z-index: 2; }
+      .suite-table thead .policy-year { z-index: 3; }
+      .suite-table tbody .policy-year { box-shadow: 1px 0 var(--line); }
+      .suite-table tbody tr.key-year > * { background: var(--sand); }
+      .suite-dialog { margin: auto auto 0; width: 100%; padding: 18px 16px max(12px, env(safe-area-inset-bottom)); border-radius: 18px 18px 0 0; }
+      .suite-choices label { min-height: 44px; }
+      .pdf-share-address { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <header class="topbar"><div class="wrap top-inner"><div class="brand">计划书工作台<small>保险利益演示</small></div><!-- TRIAL BADGE --></div></header>
+  <main class="wrap workspace">
+    <!-- PREVIEW SHARE START -->
+    <section id="preview-share" class="preview-share" aria-label="微信试用链接" hidden>
+      <button id="copy-preview-link" class="secondary" type="button">复制微信试用链接</button>
+      <span id="preview-share-status" role="status">转发给同事时，请复制这里的完整链接。</span>
+      <input id="preview-link-address" class="pdf-share-address" aria-label="完整微信试用链接" type="text" readonly hidden>
+    </section>
+    <!-- PREVIEW SHARE END -->
+    <section class="panel suite-product"><label class="suite-label" for="product">产品版本</label><select id="product" disabled></select><p id="load-status" class="field-help" role="status"></p></section>
+    <section id="form-view" hidden>
+      <header class="page-heading suite-heading"><div><p class="kicker">填写方案</p><h1 id="product-title"></h1></div></header>
+      <form id="plan-form">
+        <div class="input-grid">
+          <section class="panel">
+            <div class="panel-heading"><span class="section-number">01</span><h2>投保信息</h2><button type="button" class="text-button" id="sample">套用原表示例</button></div>
+            <div class="field"><label for="age">投保年龄</label><div class="unit-field"><input id="age" type="number" min="0" max="80" step="1" required><span>岁</span></div></div>
+            <div class="field"><label for="sex">性别</label><select id="sex"><option value="M">男</option><option value="F">女</option></select></div>
+            <div class="field"><label for="term">缴费期间</label><select id="term" required></select></div>
+            <p id="term-help" class="field-help"></p>
+            <div class="field"><label for="premium">首年保费</label><div class="unit-field"><input id="premium" type="number" min="0.01" step="0.01" required><span>元</span></div></div>
+            <div class="presets" aria-label="保费快捷选项"><button type="button" data-premium="50000">5 万</button><button type="button" data-premium="100000">10 万</button><button type="button" data-premium="200000">20 万</button><button type="button" data-premium="1000000">100 万</button></div>
+          </section>
+          <div class="right-stack">
+            <section class="panel assumptions">
+              <div class="panel-heading"><span class="section-number">02</span><h2>演示与领取</h2></div>
+              <div class="field"><label for="dividend">分红演示水平</label><div class="unit-field"><input id="dividend" type="number" min="0" step="0.01" required><span>%</span></div></div>
+              <div class="field" id="rate-field"><label for="rate">账户演示利率</label><div class="unit-field"><input id="rate" type="number" step="0.01" required><span>%</span></div></div>
+              <div class="field" id="start-field" hidden><label id="start-label" for="start">领取设置</label><select id="start"></select></div>
+              <p id="start-help" class="field-help" hidden></p>
+            </section>
+            <details class="panel" id="withdrawals" hidden><summary class="suite-label">部分领取设计</summary><p class="field-help suite-withdraw-note" id="withdrawal-note"></p><div id="withdraw-list"></div><button type="button" class="secondary" id="add-withdrawal">＋ 添加领取</button></details>
+          </div>
+        </div>
+        <div class="panel display-summary"><div><h2>展示项目</h2><p id="selected-summary" class="field-help"></p></div><button type="button" class="secondary" id="form-settings">选择展示项目</button></div>
+        <div class="form-actions"><p class="error" id="form-error" role="alert" hidden></p><div class="total"><span>计划总保费</span><strong id="total">—</strong></div><button class="primary" type="submit" id="generate">生成计划书</button></div>
+      </form>
+    </section>
+    <section id="preview-view" hidden>
+      <div class="preview-toolbar"><button id="back" class="text-button" type="button">← 返回填写</button><div class="toolbar-actions"><button id="preview-settings" class="secondary" type="button">展示项目</button><button id="export" class="primary" type="button">生成 PDF</button></div></div>
+      <p id="pdf-status" class="inline-status" role="status" hidden></p>
+      <div id="pdf-actions" class="pdf-actions" hidden><strong id="pdf-info"></strong><button id="share-pdf" class="primary" type="button" hidden>分享 PDF 文件</button><a id="save-pdf" class="secondary" download>保存 PDF</a></div>
+      <article class="document"><header class="document-heading"><p id="document-version" class="kicker"></p><h1 id="document-title"></h1><p id="document-summary"></p><p id="document-assumptions" class="subtle"></p></header><p class="suite-table-hint">左右滑动查看完整明细</p><div class="suite-table" tabindex="0" aria-label="逐年利益演示表"><table><thead id="plan-head"></thead><tbody id="plan-body"></tbody></table></div></article>
+      <p id="plan-notes" class="suite-notes"></p>
+    </section>
+  </main>
+  <dialog class="suite-dialog" id="settings" aria-labelledby="settings-title"><h2 id="settings-title">展示项目</h2><p id="settings-product" class="field-help"></p><div class="toolbar-actions"><button class="secondary" type="button" id="select-all">全选</button><button class="secondary" type="button" id="select-default">恢复推荐</button></div><div id="column-choices"></div><p class="error" id="settings-error" role="alert" hidden></p><div class="toolbar-actions settings-actions"><button class="secondary" type="button" id="cancel-settings">取消</button><button class="primary" type="button" id="apply-settings">应用</button></div></dialog>
+  <!-- DATA -->
+  <!-- SCRIPTS -->
+</body>
+</html>

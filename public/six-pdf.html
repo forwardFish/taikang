@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>转发计划书 PDF · 六款产品</title>
+  <style>:root {
+  color-scheme: light;
+  --paper: #f5f2ed;
+  --white: #fffdfa;
+  --ink: #282d2b;
+  --muted: #686e67;
+  --line: #e8e2da;
+  --pine: #254c42;
+  --pine-light: #eaf0e9;
+  --clay: #783d35;
+  --sand: #f5e8db;
+  --radius: 20px;
+  font-family: "Microsoft YaHei", "PingFang SC", "Noto Sans SC", system-ui, sans-serif;
+  font-size: 16px;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; color: var(--ink); background: var(--paper); }
+[hidden] { display: none !important; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+button:disabled { cursor: default; opacity: .5; }
+button:focus-visible, input:focus-visible, select:focus-visible, [tabindex]:focus-visible { outline: 3px solid #548475; outline-offset: 3px; }
+h1, h2, h3, p { margin: 0; }
+.wrap { width: min(1080px, 100% - 48px); margin-inline: auto; }
+.topbar { background: #fdfaf6; border-bottom: 1px solid var(--line); }
+.top-inner { min-height: 72px; display: flex; align-items: center; justify-content: space-between; }
+.brand { display: flex; align-items: center; gap: 12px; font-weight: 700; }
+.brand small { display: block; font-size: 11px; color: var(--muted); font-weight: 400; margin-top: 2px; }
+.brand-icon { width: 38px; height: 38px; border-radius: 11px; background: var(--pine); color: white; display: grid; place-items: center; }
+.brand-icon svg { width: 23px; height: 23px; }
+.trial { border: 1px solid #cfd9cf; border-radius: 30px; padding: 6px 12px; color: var(--pine); font-size: 12px; background: var(--pine-light); }
+.workspace { padding-top: 28px; }
+.steps { display: flex; align-items: center; gap: 12px; }
+.steps button { display: flex; align-items: center; gap: 7px; background: transparent; color: var(--muted); border: 0; padding: 8px 0; font-size: 13px; }
+.steps button span { font-size: 11px; border-radius: 50%; background: #e9e5dd; padding: 5px; min-width: 26px; }
+.steps button[aria-current] { color: var(--pine); font-weight: 700; }
+.steps button[aria-current] span { color: #fff; background: var(--pine); }
+.step-line { width: 28px; height: 1px; background: #d2ccc2; }
+.page-heading { margin: 27px 0 23px; display: flex; justify-content: space-between; align-items: flex-end; gap: 10px; }
+.kicker { color: var(--clay); font-size: 12px; font-weight: 700; letter-spacing: .11em; }
+.page-heading h1 { font-size: clamp(34px, 6vw, 55px); line-height: 1.2; margin: 6px 0 8px; letter-spacing: -.04em; }
+.subtle { color: var(--muted); font-size: 14px; line-height: 1.5; }
+.input-grid { display: grid; grid-template-columns: 1.05fr 1fr; gap: 17px; align-items: start; }
+.right-stack { display: grid; gap: 17px; }
+.panel { padding: 21px 23px 24px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); }
+.panel-heading { display: flex; align-items: center; gap: 10px; margin-bottom: 13px; }
+.panel-heading h2 { font-size: 17px; }
+.section-number { background: var(--pine-light); color: var(--pine); border-radius: 8px; padding: 5px 8px; font-size: 11px; font-weight: 700; }
+.field { display: grid; grid-template-columns: minmax(105px, 1fr) minmax(125px, 1fr); gap: 10px; align-items: center; min-height: 58px; margin: 0; border: 0; padding: 8px 0; }
+.field + .field { border-top: 1px solid var(--line); }
+.field > label, .gender legend { font-size: 14px; font-weight: 600; }
+.field > select, .unit-field { border: 1px solid #ddd8ce; background: #faf8f3; border-radius: 9px; height: 41px; min-width: 0; }
+.field > select { padding: 0 9px; color: var(--ink); }
+.unit-field { display: flex; align-items: center; padding: 0 10px; gap: 6px; }
+.unit-field input { width: 100%; min-width: 0; border: 0; background: transparent; color: var(--ink); text-align: right; padding: 5px 0; font-variant-numeric: tabular-nums; }
+.unit-field span { font-size: 13px; color: var(--muted); flex-shrink: 0; }
+.gender { display: block; position: relative; }
+.gender legend { float: left; width: calc(50% - 5px); line-height: 41px; }
+.gender .segmented { margin-left: calc(50% + 5px); }
+.segmented { display: flex; gap: 4px; background: #f2eee7; border-radius: 9px; padding: 3px; }
+.segmented label { flex: 1; display: grid; position: relative; cursor: pointer; }
+.segmented input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
+.segmented span { display: grid; place-items: center; min-height: 34px; border-radius: 7px; }
+.segmented input:checked + span { background: var(--pine); color: #fff; }
+.segmented input:focus-visible + span { outline: 3px solid #548475; outline-offset: 2px; }
+.field-help { color: var(--muted); font-size: 12px; line-height: 1.55; }
+#term-help { padding-bottom: 7px; }
+.premium-field { border-top: 1px solid var(--line); }
+.presets, .payout-options { display: flex; flex-wrap: wrap; gap: 7px; }
+.presets button { color: var(--pine); background: var(--pine-light); border: 1px solid transparent; padding: 7px 9px; font-size: 12px; border-radius: 8px; }
+.presets button[aria-pressed="true"] { border-color: var(--pine); font-weight: 700; }
+.payout-panel { background: #fbf4ea; border-color: #ead8c8; }
+.payout-panel .section-number { color: var(--clay); background: var(--sand); }
+.payout-options { margin: 14px 0; }
+.choice { border: 1px solid #decbba; background: #fffaf3; color: #604638; border-radius: 9px; padding: 9px 12px; min-height: 39px; font-size: 13px; }
+.choice[aria-pressed="true"] { background: var(--clay); border-color: var(--clay); color: white; }
+.payout-summary { display: flex; justify-content: space-between; align-items: center; gap: 8px; border-top: 1px solid #e8d9cb; padding-top: 12px; font-size: 13px; color: #6e554a; }
+.payout-summary strong { color: var(--clay); font-size: 14px; text-align: right; }
+.payout-change { margin: 0 0 10px; color: #745025; font-size: 12px; }
+.assumptions { padding-bottom: 15px; }
+.display-summary { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 17px; padding-block: 15px; }
+.display-summary h2 { font-size: 15px; margin-bottom: 5px; }
+.display-summary button { flex-shrink: 0; }
+.form-actions { margin-top: 17px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--white); display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.total span { font-size: 12px; color: var(--muted); display: block; }
+.total strong { font-variant-numeric: tabular-nums; font-size: 21px; color: var(--pine); }
+.primary, .secondary, .text-button { min-height: 41px; border-radius: 9px; padding: 9px 14px; font-size: 13px; font-weight: 600; }
+.primary { border: 1px solid var(--pine); color: white; background: var(--pine); }
+.primary span { margin-left: 10px; }
+.secondary { color: var(--pine); background: var(--white); border: 1px solid #c6d1c8; }
+.text-button { padding-inline: 8px; border: 0; background: transparent; color: var(--pine); }
+.error, .inline-status { padding: 9px 12px; margin-top: 9px; border-radius: 8px; background: #fbebe5; color: #8b3026; font-size: 13px; }
+.inline-status { margin: 0 0 12px; color: var(--pine); background: var(--pine-light); }
+.preview-toolbar { margin: 17px 0 13px; display: flex; justify-content: space-between; gap: 10px; }
+.toolbar-actions { display: flex; gap: 8px; }
+.preview-share { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-bottom: 12px; font-size: 13px; color: var(--muted); }
+.pdf-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 13px; padding: 11px 13px; border: 1px solid #cbd9cd; border-radius: 12px; background: var(--pine-light); }
+.pdf-actions strong { display: block; color: var(--pine); font-size: 14px; }
+.pdf-actions small { display: block; color: var(--muted); font-size: 12px; margin-top: 3px; }
+.pdf-actions a { display: inline-flex; align-items: center; text-decoration: none; white-space: nowrap; }
+.pdf-actions .toolbar-actions, .pdf-handoff .toolbar-actions { flex-wrap: wrap; }
+.pdf-handoff { max-width: 590px; margin: 26px auto; padding: 22px; border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); }
+.pdf-handoff h1 { margin: 0 0 8px; }
+.pdf-handoff p { line-height: 1.6; }
+.pdf-filename { overflow-wrap: anywhere; color: var(--pine); }
+.pdf-handoff a { display: inline-flex; align-items: center; text-decoration: none; }
+.pdf-share-address { width: 100%; min-height: 41px; }
+.document { border: 1px solid var(--line); border-radius: var(--radius); background: var(--white); overflow: hidden; }
+.document-heading { padding: 23px 22px 18px; background: #fbf2e9; border-bottom: 1px solid #eee0d4; }
+.document-heading h1 { margin: 7px 0 10px; color: var(--clay); font-size: clamp(21px, 4vw, 36px); line-height: 1.32; }
+.document-summary { font-weight: 700; color: #59342c; font-size: clamp(15px, 3.2vw, 21px); line-height: 1.5; }
+.document-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 11px; }
+.document-meta span { color: #684d40; border: 1px solid #e6d5c5; border-radius: 7px; padding: 4px 7px; font-size: 12px; }
+.lump-card { margin-top: 13px; background: #f2e3d5; border-radius: 11px; padding: 11px 13px; display: flex; justify-content: space-between; align-items: center; }
+.lump-card small { display: block; color: #754e3f; font-size: 12px; }
+.lump-card strong { display: block; color: var(--clay); font-size: 18px; margin-top: 3px; }
+.lump-card > :last-child { text-align: right; }
+.table-caption { display: flex; justify-content: space-between; gap: 9px; align-items: baseline; margin: 16px 16px 11px; }
+.table-caption h2 { font-size: 16px; }
+.table-caption span { color: var(--muted); font-size: 12px; text-align: right; }
+.table-scroll { max-height: 555px; overflow: auto; margin: 0 12px; border-radius: 8px; border: 1px solid #e7ddd6; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; font-variant-numeric: tabular-nums; font-size: 13px; }
+th, td { padding: 9px 10px; border-bottom: 1px solid #eee7e1; }
+thead th { position: sticky; top: 0; z-index: 1; min-width: 86px; font-size: 12px; text-align: right; color: #fff; background: #654037; }
+thead th:first-child, tbody tr > :first-child { position: sticky; left: 0; }
+thead th[data-column="year"], tbody th { text-align: center; min-width: 53px; }
+thead th:first-child { z-index: 3; }
+tbody th, tbody td { background: #fffdfa; }
+tbody tr:nth-child(even) > * { background: #f9f6f1; }
+tbody tr.key-year > * { background: #f2e2d2; }
+td { text-align: right; white-space: nowrap; }
+td.integer { text-align: center; }
+td.emphasis { color: #873d31; font-weight: 700; }
+.risk-notes { margin: 16px; color: var(--muted); font-size: 12px; line-height: 1.65; }
+.risk-notes h3 { color: var(--ink); margin-bottom: 4px; font-size: 13px; }
+.risk-notes p + p { margin-top: 3px; }
+.footer { color: var(--muted); font-size: 11px; padding-block: 18px 24px; }
+dialog { border: 0; border-radius: 21px; padding: 0; width: min(560px, 100% - 28px); background: #fffdfa; color: var(--ink); box-shadow: 0 20px 80px #161c1b30; }
+dialog::backdrop { background: #222b2799; }
+.sheet-heading, .sheet-actions { display: flex; justify-content: space-between; align-items: center; gap: 8px; padding: 16px 19px; }
+.sheet-heading { border-bottom: 1px solid var(--line); }
+.sheet-heading h2 { font-size: 19px; }
+.sheet-heading p { margin-top: 4px; color: var(--muted); font-size: 13px; }
+.icon-button { min-width: 36px; min-height: 36px; border-radius: 8px; border: 1px solid var(--line); background: #f7f4ef; color: var(--ink); }
+.sheet-body { padding: 0 19px 12px; max-height: min(57vh, 510px); overflow: auto; }
+.sheet-actions { border-top: 1px solid var(--line); }
+.column-presets { display: flex; flex-wrap: wrap; gap: 2px; }
+.sheet-actions .primary { flex-shrink: 0; }
+.column-group { border: 0; margin: 16px 0 0; padding: 0; }
+.column-group legend { font-weight: 700; font-size: 13px; margin-bottom: 6px; }
+.column-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; }
+.column-item { display: flex; align-items: center; gap: 7px; min-height: 36px; padding: 5px 6px; color: #37443e; font-size: 13px; background: #f7f5ef; border-radius: 7px; cursor: pointer; }
+.column-item input { accent-color: var(--pine); width: 16px; height: 16px; flex-shrink: 0; }
+.order-details { margin-top: 15px; font-size: 13px; }
+.order-details summary { color: var(--pine); cursor: pointer; padding: 7px 0; font-weight: 600; }
+.order-details ol { padding-left: 24px; margin: 0; }
+.order-details li { padding: 4px 0; }
+.order-details li span { display: inline-block; min-width: 155px; }
+.order-details li button { margin-left: 5px; }
+
+@media (max-width: 680px) {
+  .wrap { width: min(100% - 36px, 520px); }
+  .top-inner { min-height: 61px; }
+  .workspace { padding-top: 13px; }
+  .page-heading { margin: 14px 0; align-items: start; }
+  .page-heading .subtle { font-size: 12px; }
+  .page-heading .text-button { padding: 4px 0 4px 4px; max-width: 100px; font-size: 12px; }
+  .input-grid, .right-stack { grid-template-columns: 1fr; gap: 11px; }
+  .panel { padding: 15px 14px 14px; border-radius: 15px; }
+  .panel-heading { margin-bottom: 6px; }
+  .field { min-height: 50px; padding-block: 6px; }
+  .form-actions { margin-top: 10px; }
+  .display-summary { margin-top: 11px; gap: 9px; }
+  .display-summary .field-help { font-size: 11px; }
+  .display-summary button { padding-inline: 9px; }
+  .total strong { font-size: 18px; }
+  .document { border-radius: 14px; }
+  .document-heading { padding: 15px 13px; }
+  .preview-toolbar { margin-top: 12px; }
+  .toolbar-actions { gap: 5px; }
+  .preview-toolbar button { padding-inline: 9px; }
+  .table-scroll { margin: 0 8px; max-height: 54vh; }
+  dialog { margin: auto 0 0; width: 100%; max-width: none; border-radius: 20px 20px 0 0; }
+  .sheet-actions { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+}
+
+:root {
+  --paper: #f7f3ee;
+  --white: #fff;
+  --ink: #292228;
+  --muted: #65575d;
+  --line: #e4d9d9;
+  --pine: #632c3c;
+  --pine-light: #f4e9ed;
+  --clay: #592434;
+  --sand: #f6e9da;
+  --radius: 14px;
+}
+
+.real-site { --topbar-height: 50px; container-type: inline-size; }
+.real-site .topbar { position: relative; z-index: 1; background: var(--pine); border: 0; color: white; }
+.real-site:has(#form-view:not([hidden])) .topbar { background: transparent; }
+.real-site .brand small { display: none; }
+.real-site .top-inner { min-height: var(--topbar-height); }
+.real-site .workspace { display: grid; grid-template-columns: minmax(0, 1fr); padding-top: 0; }
+.real-site #form-view { display: contents; }
+.real-site .suite-heading {
+  position: relative;
+  isolation: isolate;
+  order: -2;
+  margin: 0 0 14px;
+  padding: 2px 0 19px;
+  color: white;
+}
+.real-site .suite-heading::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset-block: calc(-1 * var(--topbar-height)) 0;
+  inset-inline: calc((100% - 100cqw) / 2);
+  background: var(--plan-hero-image, none) center / cover no-repeat, var(--pine);
+  pointer-events: none;
+}
+.real-site .suite-heading .kicker, .real-site .section-number { display: none; }
+.real-site .suite-heading h1 { margin: 0; font-size: clamp(22px, 6vw, 34px); line-height: 1.35; letter-spacing: 0; }
+.real-site .product-type { display: block; margin-top: 2px; color: #f6e7ed; font-size: .58em; font-weight: 500; }
+.real-site .suite-product {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 0 12px;
+  margin-bottom: 12px;
+  padding: 0 4px;
+  border: 0;
+  background: transparent;
+}
+.real-site .suite-label { margin-bottom: 0; }
+.real-site #load-status { grid-column: 1 / -1; }
+.real-site #load-status:empty { display: none; }
+.real-site .panel-heading { min-height: 40px; margin-bottom: 2px; border-bottom: 1px solid var(--line); }
+.real-site .panel-heading h2, .real-site .display-summary h2 { color: var(--clay); }
+.real-site #sample { margin-left: auto; padding-inline: 4px; text-decoration: underline; text-underline-offset: 3px; }
+.real-site .field > select, .real-site .unit-field, .real-site .suite-product select,
+.real-site .suite-withdraw :is(input, select, button) { border-color: var(--line); background: #fefcfc; }
+.real-site select {
+  appearance: none;
+  padding-right: 30px;
+}
+.real-site select:not([multiple]) {
+  background-image: linear-gradient(45deg, transparent 47%, var(--pine) 50%, var(--pine) 68%, transparent 71%),
+    linear-gradient(135deg, transparent 29%, var(--pine) 32%, var(--pine) 50%, transparent 53%);
+  background-position: right 17px center, right 12px center;
+  background-size: 5px 6px;
+  background-repeat: no-repeat;
+}
+.real-site .field > select, .real-site .suite-product select,
+.real-site .suite-withdraw select { padding-right: 30px; }
+.real-site .suite-withdraw {
+  grid-template-columns: minmax(64px, .65fr) minmax(156px, 1.5fr) minmax(80px, .85fr) auto;
+}
+.real-site .form-actions .total { min-width: 0; }
+.real-site .form-actions #form-error { grid-column: 1 / -1; margin: 0; overflow-wrap: anywhere; }
+.real-site .form-actions:has(#form-error:not([hidden])) { flex-wrap: wrap; }
+.real-site .presets { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.real-site .presets button { border-color: var(--line); background: var(--white); }
+.real-site .presets button[aria-pressed="true"] { border-color: #cba8b4; background: #e8d4db; }
+.real-site .total strong { overflow-wrap: anywhere; }
+.real-site .suite-table tbody tr:nth-child(even) > * { background: #faf6f7; }
+.real-site .suite-table tbody tr.key-year > * { background: var(--sand); }
+.secondary, .pdf-actions { border-color: #d9c4cc; }
+.document-heading { background: var(--pine-light); border-color: #e6d5dc; }
+.suite-table thead th { background: var(--pine); }
+:is(button, a, input, select, [tabindex]):focus-visible { outline-color: #905569; }
+
+@media (max-width: 960px) {
+  .real-site .suite-withdraw { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (max-width: 680px) {
+  .real-site { --topbar-height: 42px; }
+  .real-site .suite-heading { margin-bottom: 12px; padding-bottom: 15px; }
+  .real-site .suite-product { padding-inline: 6px; }
+  .real-site .panel { padding: 12px 13px; }
+  .real-site .field { grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); }
+  .real-site .unit-field input { text-align: left; }
+  .real-site .form-actions {
+    position: sticky;
+    bottom: 0;
+    z-index: 3;
+    grid-template-columns: minmax(0, 1fr);
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+    box-shadow: 0 -4px 16px #59243412;
+  }
+  .real-site .total { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+  .real-site .total strong { text-align: right; font-size: 20px; }
+  .real-site #generate { width: 100%; min-height: 46px; font-size: 15px; }
+}
+
+@media (max-width: 480px), (min-width: 681px) and (max-width: 960px) {
+  .real-site .suite-withdraw :is(input:first-child, select) { grid-column: 1 / -1; }
+  .real-site .suite-withdraw select { grid-row: auto; }
+}
+
+@media (max-width: 360px) {
+  .real-site .field { grid-template-columns: minmax(110px, .9fr) minmax(0, 1.1fr); }
+}
+
+@media (forced-colors: active) {
+  .real-site select { appearance: auto; }
+  .real-site select:not([multiple]) { background-image: none; }
+}
+</style>
+  <style>
+    .pdf-handoff .toolbar-actions { gap: 8px; margin-block: 12px; }
+    .pdf-handoff .toolbar-actions > * { min-height: 44px; }
+    #share-status:not(:empty) { margin-top: 12px; }
+    @media (max-width: 680px) {
+      .pdf-handoff { padding: 18px 15px; margin-top: 12px; }
+      .pdf-handoff .toolbar-actions { display: grid; }
+      .pdf-handoff .toolbar-actions > * { justify-content: center; text-align: center; }
+      .pdf-share-address { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap workspace">
+    <section class="pdf-handoff">
+      <h1>转发计划书 PDF</h1>
+      <p id="share-filename" class="pdf-filename"></p>
+      <div id="share-tools" hidden>
+        <p id="share-wechat-help" hidden>点「复制浏览器打开链接」，粘贴到手机浏览器地址栏。打开后就能下载同一份 PDF，再分享到微信。</p>
+        <div class="toolbar-actions">
+          <button id="share-file" class="primary" type="button" disabled hidden>分享 PDF 文件</button>
+          <a id="save-file" class="secondary" rel="noreferrer" hidden>下载 PDF</a>
+          <button id="copy-share-address" class="secondary" type="button">复制浏览器打开链接</button>
+        </div>
+        <p>如果系统分享菜单没有微信，可以先下载 PDF，再从手机文件管理分享给微信联系人。</p>
+        <input id="share-address" class="pdf-share-address" type="text" aria-label="浏览器打开链接" readonly hidden>
+      </div>
+      <p id="share-status" role="status"></p>
+    </section>
+  </main>
+  <script type="module">const pdfType = 'application/pdf';
+
+function canSharePdf(file) {
+  if (typeof File !== 'function' || typeof navigator.share !== 'function' || typeof navigator.canShare !== 'function') return false;
+  try {
+    const sample = file ?? new File(['%PDF-1.7'], 'xingfu-plan.pdf', { type: pdfType });
+    return navigator.canShare({ files: [sample] });
+  } catch {
+    return false;
+  }
+}
+
+async function loadPdfForSharing(download, filename) {
+  const response = await fetch(download, { cache: 'no-store', referrerPolicy: 'no-referrer' });
+  if (!response.ok || response.headers.get('Content-Type')?.split(';')[0] !== pdfType) {
+    throw new Error('无法取得 PDF 文件，请返回计划书页面重新生成。');
+  }
+  const header = response.headers.get('Content-Disposition') ?? '';
+  const encodedName = /filename\*=UTF-8''([^;]+)/i.exec(header)?.[1];
+  const name = encodedName ? pdfFilename(decodeURIComponent(encodedName), filename) : filename;
+  return preparePdfFile(new Uint8Array(await response.arrayBuffer()), name);
+}
+
+function preparePdfFile(bytes, filename) {
+  if (new TextDecoder().decode(bytes.slice(0, 5)) !== '%PDF-') throw new Error('取得的文件不是有效的 PDF。');
+  const file = typeof File === 'function' ? new File([bytes], filename, { type: pdfType }) : null;
+  return { blob: file ?? new Blob([bytes], { type: pdfType }), file, filename };
+}
+
+function sharePdf(file) {
+  return navigator.share({ files: [file] });
+}
+
+function createPdfSharePage(download, filename) {
+  const file = new URL(download);
+  const page = new URL(file.pathname.startsWith('/api/suite/') ? '/six-pdf.html' : '/pdf-share.html', file.origin);
+  for (const key of ['eo_token', 'eo_time']) {
+    if (file.searchParams.has(key)) page.searchParams.set(key, file.searchParams.get(key));
+  }
+  // The gateway strips its own top-level query fields on redirect. The complete
+  // PDF address also travels in a regular query field that survives the redirect.
+  page.searchParams.set('file', file.pathname + file.search);
+  page.hash = new URLSearchParams({ name: filename }).toString();
+  return page;
+}
+
+function readPdfSharePage(href) {
+  const page = new URL(href);
+  const parameters = new URLSearchParams(page.hash.slice(1));
+  const file = new URL(page.searchParams.get('file') ?? parameters.get('file') ?? '/', page.origin);
+  if (file.origin !== page.origin || !/^\/api\/(?:plan-pdf|suite)\/save-[A-Za-z0-9_-]{39,5000}\.pdf$/.test(file.pathname)) {
+    throw new Error('这个 PDF 链接不完整，请回到计划书页面重新生成。');
+  }
+  const filename = pdfFilename(parameters.get('name') ?? '');
+  return { file, filename, page: createPdfSharePage(file.href, filename) };
+}
+
+function pdfFilename(name, fallback = '幸福享裕计划书.pdf') {
+  return /^[\p{L}\p{N}_（）() -]{1,80}\.pdf$/u.test(name) ? name : fallback;
+}
+
+async function copyPdfAddress(address) {
+  try {
+    await navigator.clipboard.writeText(address.value);
+    return '链接已复制，请粘贴到手机浏览器的地址栏打开。';
+  } catch {
+    address.hidden = false;
+    address.focus();
+    address.select();
+    return '请长按复制选中的完整链接，再粘贴到手机浏览器打开。';
+  }
+}
+
+const element = id => document.getElementById(id);
+const status = element('share-status');
+const share = element('share-file');
+const inWeChat = /MicroMessenger/i.test(navigator.userAgent);
+
+async function prepareSharePage() {
+  const { file, filename, page } = readPdfSharePage(location.href);
+  element('share-filename').textContent = filename;
+  element('share-tools').hidden = false;
+  element('share-wechat-help').hidden = !inWeChat;
+  const address = element('share-address');
+  address.value = page.href;
+  element('copy-share-address').addEventListener('click', async () => {
+    status.textContent = await copyPdfAddress(address);
+  });
+
+  if (inWeChat && !canSharePdf()) return;
+  status.textContent = '正在准备 PDF 文件…';
+  const pdf = await loadPdfForSharing(file.href, filename);
+  element('share-filename').textContent = pdf.filename;
+  if (!inWeChat) {
+    const save = element('save-file');
+    save.href = URL.createObjectURL(pdf.blob);
+    save.download = pdf.filename;
+    save.hidden = false;
+  }
+  status.textContent = '';
+  if (!pdf.file || !canSharePdf(pdf.file)) return;
+  share.hidden = false;
+  share.disabled = false;
+  share.addEventListener('click', async () => {
+    try {
+      await sharePdf(pdf.file);
+    } catch (error) {
+      if (error.name !== 'AbortError') status.textContent = '系统暂时无法分享，请先下载 PDF，再从手机文件管理分享到微信。';
+    }
+  });
+}
+
+prepareSharePage().catch(error => {
+  share.hidden = true;
+  status.textContent = error instanceof TypeError ? '连接失败，请检查网络后重新打开本页。' : error.message;
+});
+</script>
+</body>
+</html>

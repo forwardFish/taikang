@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="referrer" content="no-referrer">
+  <meta name="robots" content="noindex,nofollow">
+  <title>转发计划书 PDF · 幸福享裕</title>
+  <!-- STYLE -->
+  <style>
+    .pdf-handoff .toolbar-actions { gap: 8px; margin-block: 12px; }
+    .pdf-handoff .toolbar-actions > * { min-height: 44px; }
+    #share-status:not(:empty) { margin-top: 12px; }
+    @media (max-width: 680px) {
+      .pdf-handoff { padding: 18px 15px; margin-top: 12px; }
+      .pdf-handoff .toolbar-actions { display: grid; }
+      .pdf-handoff .toolbar-actions > * { justify-content: center; text-align: center; }
+      .pdf-share-address { font-size: 16px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="wrap workspace">
+    <section class="pdf-handoff">
+      <h1>转发计划书 PDF</h1>
+      <p id="share-filename" class="pdf-filename"></p>
+      <div id="share-tools" hidden>
+        <p id="share-wechat-help" hidden>点「复制浏览器打开链接」，粘贴到手机浏览器地址栏。打开后就能下载同一份 PDF，再分享到微信。</p>
+        <div class="toolbar-actions">
+          <button id="share-file" class="primary" type="button" disabled hidden>分享 PDF 文件</button>
+          <a id="save-file" class="secondary" rel="noreferrer" hidden>下载 PDF</a>
+          <button id="copy-share-address" class="secondary" type="button">复制浏览器打开链接</button>
+        </div>
+        <p>如果系统分享菜单没有微信，可以先下载 PDF，再从手机文件管理分享给微信联系人。</p>
+        <input id="share-address" class="pdf-share-address" type="text" aria-label="浏览器打开链接" readonly hidden>
+      </div>
+      <p id="share-status" role="status"></p>
+    </section>
+  </main>
+  <!-- SCRIPTS -->
+</body>
+</html>
