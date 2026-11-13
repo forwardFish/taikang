@@ -19,6 +19,7 @@ export const COLUMNS = [
   { key: 'mainDeath', label: '主险身故给付合计', group: '主险与领取' },
   { key: 'transfer', label: '转入万能账户', group: '万能账户与总利益' },
   { key: 'bonus', label: '持续奖金', group: '万能账户与总利益' },
+  { key: 'withdrawal', label: '部分领取', group: '万能账户与总利益', kind: 'withdrawal' },
   { key: 'account', label: '万能账户价值', group: '万能账户与总利益' },
   { key: 'accountCash', label: '万能账户现金价值', group: '万能账户与总利益' },
   { key: 'survival', label: '预期生存总利益', group: '万能账户与总利益' },
@@ -74,7 +75,7 @@ function annualizedReturn(premiums, benefit) {
 }
 
 export function calculate(data, input) {
-  const { age, sex, term, premium, rate, dividend, receive } = input;
+  const { age, sex, term, premium, rate, dividend, receive, withdrawals = [] } = input;
   const selected = caseFor(data, age, sex, term);
   if (!selected) throw new Error('请选择有效的投保年龄、性别和缴费期间。');
   if (!(premium > 0) || !Number.isSafeInteger(Math.round(premium * 100))) throw new Error('请输入有效的首年保费。');
@@ -82,6 +83,10 @@ export function calculate(data, input) {
   if (!Number.isFinite(dividend) || dividend < 0) throw new Error('请输入有效的分红演示水平。');
   const [basicRate, factors, sourceRows] = selected;
   if (receive && !factors[receive]) throw new Error('这个投保组合没有所选领取年龄，请重新选择。');
+  for (const { year } of withdrawals) {
+    if (year > sourceRows.length) throw new Error(`第 ${year} 年超出本方案的演算年度。`);
+  }
+  const withdrawalByYear = new Map(withdrawals.map(({ year, amount }) => [year, amount]));
 
   const basic = basicRate * premium / 1000;
   const factor = receive ? factors[receive] : 0;
@@ -106,7 +111,13 @@ export function calculate(data, input) {
     const transfer = annuity + lumpSum + previousDividend;
     if (year <= 6) initialTransfers += transfer;
     const bonus = year < 6 ? 0 : (year === 6 ? initialTransfers : transfer) * data.transferFee;
-    const account = (previousAccount + transfer - transfer * data.transferFee) * (1 + rate / 100) + bonus;
+    // 原表当年展示领取金额，下一年度万能账户公式扣减上一年度领取。
+    const priorWithdrawal = withdrawalByYear.get(year - 1) ?? 0;
+    const withdrawal = withdrawalByYear.get(year) ?? 0;
+    const account = (previousAccount + transfer - transfer * data.transferFee) * (1 + rate / 100) + bonus - priorWithdrawal;
+    if (withdrawal > account + 1e-7) {
+      throw new Error(`第 ${year} 年的部分领取金额超过万能账户价值（${formatValue(account)} 元）。`);
+    }
     const fee = data.surrenderFees[Math.min(index, data.surrenderFees.length - 1)];
     const accountCash = account * (1 - fee);
     paid += payment;
@@ -123,7 +134,7 @@ export function calculate(data, input) {
     const row = {
       year, age: startAge, endAge: startAge + 1, premium: payment, paid,
       annuity, lumpSum, dividend: previousDividend, yearEndDividend,
-      cash: mainCash, mainDeath, transfer, bonus, account, accountCash, survival,
+      cash: mainCash, mainDeath, transfer, bonus, withdrawal, account, accountCash, survival,
       death: account + yearEndDividend + mainDeath,
       simpleRate: (survival - paid) / paidYears,
       irr: annualizedReturn(payments, survival),
@@ -143,5 +154,14 @@ export function formatValue(value, kind) {
   if (typeof value === 'string') return value;
   if (kind === 'percent') return `${(value * 100).toFixed(2)}%`;
   if (kind === 'integer') return String(value);
+  if (kind === 'withdrawal') return value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   return Math.round(value).toLocaleString('zh-CN');
+}
+
+export function plannedWithdrawalYears(input) {
+  const years = new Set(input.withdrawals?.filter(item => item.amount > 0).map(item => item.year));
+  for (const { from, to } of input.withdrawalStages ?? []) {
+    for (let year = from; year <= to; year++) years.add(year);
+  }
+  return years;
 }

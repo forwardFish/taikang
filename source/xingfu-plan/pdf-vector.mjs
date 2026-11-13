@@ -1,8 +1,8 @@
 import { PRODUCT } from './calculate.mjs';
 import { drawPlanPages } from './export-pdf.mjs';
 
-function vectorPage(PDFLib, pdf, font, width, height, wide) {
-  const page = pdf.addPage(wide ? [841.89, 595.28] : [595.28, 841.89]);
+function vectorPage(PDFLib, pdf, font, width, height, pageSize) {
+  const page = pdf.addPage(pageSize);
   const scale = page.getWidth() / width;
   const pointY = y => (height - y) * scale;
   const color = value => PDFLib.rgb(...value.slice(1).match(/../g).map(part => Number.parseInt(part, 16) / 255));
@@ -36,6 +36,6 @@ export async function renderVectorPdf(plan, columns, { PDFLib, fontkit, pdfFont 
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(pdfFont);
   await drawPlanPages(plan, columns, plan.rows,
-    (width, height, wide) => vectorPage(PDFLib, pdf, font, width, height, wide));
+    (width, height, pageSize) => vectorPage(PDFLib, pdf, font, width, height, pageSize));
   return pdf.save();
 }

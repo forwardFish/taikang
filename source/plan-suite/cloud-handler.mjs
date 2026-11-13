@@ -14,6 +14,10 @@ async function submitSuite(request, action, fixedEntry) {
     if (body.length > 18000) return suiteJson({ error: '请求参数过长。' }, 413);
     data = JSON.parse(body);
     result = suitePlan(data, action !== 'plan');
+    if (action !== 'plan') {
+      result.columns = visiblePdfColumns(result.columns, result.plan.rows);
+      if (!result.columns.length) return suiteJson({ error: EMPTY_PDF_COLUMNS }, 400);
+    }
   } catch (error) {
     return suiteJson({ error: error instanceof TypeError || error instanceof SyntaxError ? '请检查计划书输入。' : error.message }, 400);
   }
@@ -21,7 +25,11 @@ async function submitSuite(request, action, fixedEntry) {
   if (pdfKey.length !== 32) return suiteJson({ error: 'PDF 服务尚未配置。' }, 503);
   const ticket = fixedEntry ? null : previewTicket(request);
   const expires = Math.min(Date.now() + 30 * 60 * 1000, ticket?.expires ?? Infinity);
-  const token = sealPdfPlan({ product: data.product, input: result.plan.input, columns: data.columns, expires }, pdfKey);
+  // Store stages compactly so a full set of distinct annual amounts fits in the PDF URL.
+  const { withdrawalStages, ...input } = result.plan.input;
+  const stages = withdrawalStages?.map(({ from, to, amount }) => [from, to, amount]);
+  const columns = result.columns.map(column => column.key);
+  const token = sealPdfPlan({ product: data.product, input, stages, columns, expires }, pdfKey);
   if (token.length > 5000) return suiteJson({ error: '领取项目较多，请分成两份方案生成 PDF。' }, 413);
   const output = { download: `/api/suite/save-${token}.pdf${ticket?.query ?? ''}` };
   if (action === 'file') {
@@ -52,7 +60,10 @@ export default async function onRequest({ request, params, fixedEntry = false })
   catch { return pdfText('PDF 链接已失效，请重新生成。', 404); }
   if (data.expires <= Date.now()) return pdfText('PDF 链接已过期，请重新生成。', 410);
   try {
-    const { plan, columns } = suitePlan(data, true);
+    if (data.stages) data.input.withdrawalStages = data.stages.map(([from, to, amount]) => ({ from, to, amount }));
+    const { plan, columns: selected } = suitePlan(data, true);
+    const columns = visiblePdfColumns(selected, plan.rows);
+    if (!columns.length) return pdfText(EMPTY_PDF_COLUMNS, 400);
     const headers = {
       ...pdfHeaders, 'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="insurance-plan.pdf"; filename*=UTF-8''${encodeURIComponent(planPdfFilename(plan))}`,

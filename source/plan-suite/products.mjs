@@ -2,7 +2,12 @@ import { calculate, COLUMNS, formatValue, payoutChoices, RISK_NOTES, termsFor } 
 import { Spreadsheet, SheetError, columnNumber } from './spreadsheet.mjs';
 
 export const SUITE_PRODUCTS = {
-  xingfu: { title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3], initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 } },
+  xingfu: {
+    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3],
+    initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 },
+    withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
+    withdrawalNote: '原表提示，退休前领取不得超过已产生年金及分红累计的 20%。',
+  },
   'changle-vip': {
     title: '泰康长乐金生（尊享版）保险产品计划', short: '长乐金生（尊享版）', version: '26.10', account: [1, 4],
     sheet: '计划及演示页', detail: '完整利益演示', first: 6, detailFirst: 18, end: 'R', notes: 'B2',
@@ -67,6 +72,7 @@ export function suiteColumns(id, model) {
     if (typeof label !== 'string' || !label.trim() || label.includes('算IRR用')) return [];
     const key = String.fromCharCode(65 + index);
     const kind = [product.year, product.age, product.endAge].includes(key) ? 'integer'
+      : product.account && product.withdrawals.some(item => item.cell === key) ? 'withdrawal'
       : /比例|增长率|单利|irr/i.test(label) ? 'percent' : undefined;
     const group = kind === 'integer' || /保费/.test(label) ? '基础信息'
       : /领取|红利|分红|年金|现价|现金价值/.test(label) ? '保单利益与领取' : '账户与总利益';
@@ -112,11 +118,36 @@ function planValue(engine, sheet, row, column) {
   }
 }
 
+const MAX_POLICY_YEARS = 106;
+
+function expandWithdrawalStages(stages, product) {
+  if (stages == null) return [];
+  if (!product.account || !Array.isArray(stages) || stages.length > MAX_POLICY_YEARS) {
+    throw new Error('请检查万能账户领取阶段。');
+  }
+  const [{ cell }] = product.withdrawals;
+  const years = new Map();
+  for (const [index, stage] of stages.entries()) {
+    const { from, to, amount } = stage ?? {};
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > MAX_POLICY_YEARS || to < from) {
+      throw new Error(`请检查第 ${index + 1} 阶段的起止保单年度，结束年度须大于或等于开始年度。`);
+    }
+    if (!(amount > 0) || !Number.isSafeInteger(Math.round(amount * 100)) || Math.round(amount * 100) / 100 !== amount) {
+      throw new Error(`请填写第 ${index + 1} 阶段的每年领取金额，最多两位小数。`);
+    }
+    for (let year = from; year <= to; year++) {
+      if (years.has(year)) throw new Error(`领取阶段在第 ${year} 年重叠，请调整起止年度。`);
+      years.set(year, { year, cell, amount });
+    }
+  }
+  return [...years.values()].sort((a, b) => a.year - b.year);
+}
+
 function validateWithdrawals(withdrawals, product) {
   const used = new Set();
   return (withdrawals ?? []).filter(({ amount }) => amount !== 0).map(({ year, cell, amount }) => {
     const key = `${cell}${year}`;
-    if (!Number.isInteger(year) || year < 1 || year > 106 || !product.withdrawals.some(item => item.cell === cell) ||
+    if (!Number.isInteger(year) || year < 1 || year > MAX_POLICY_YEARS || !product.withdrawals.some(item => item.cell === cell) ||
         !(amount > 0) || !Number.isSafeInteger(Math.round(amount * 100)) || used.has(key)) {
       throw new Error('请检查部分领取的保单年度、项目和金额。同一年度的同一项目只能填一次。');
     }
@@ -125,9 +156,18 @@ function validateWithdrawals(withdrawals, product) {
   });
 }
 
+function annualWithdrawals(input, product) {
+  if (input.withdrawalStages != null) {
+    if (input.withdrawals?.length) throw new Error('请选择一种部分领取填写方式。');
+    return expandWithdrawalStages(input.withdrawalStages, product);
+  }
+  return validateWithdrawals(input.withdrawals, product);
+}
+
 export function calculateSuite(id, model, input, columns = suiteColumns(id, model)) {
-  if (id === 'xingfu') return calculate(model, input);
   const product = SUITE_PRODUCTS[id];
+  const withdrawals = annualWithdrawals(input, product);
+  if (id === 'xingfu') return { ...calculate(model, { ...input, withdrawals }), input };
   const { age, sex, term, premium, rate, dividend, start } = input;
   const { terms, starts } = suiteChoices(id, model, age, sex, term);
   if (!terms.includes(term) || product.startChoices && !starts.includes(start)) {
@@ -138,19 +178,18 @@ export function calculateSuite(id, model, input, columns = suiteColumns(id, mode
   if (product.account && (!Number.isFinite(rate) || rate < product.account[0] || rate > product.account[1])) {
     throw new Error(`万能账户演示利率请输入 ${product.account[0]}% 至 ${product.account[1]}%。`);
   }
-  const withdrawals = validateWithdrawals(input.withdrawals, product);
   const edits = {};
   for (const [key, address] of Object.entries(product.controls)) {
     edits[address] = key === 'sex' ? (sex === 'M' ? '男' : '女') : key === 'start' ? startLabel(start)
       : key === 'dividend' || key === 'rate' ? input[key] / 100 : input[key];
   }
   for (const { cell } of product.withdrawals) {
-    for (let row = product.first; row < product.first + 106; row++) edits[`${cell}${row}`] = 0;
+    for (let row = product.first; row < product.first + MAX_POLICY_YEARS; row++) edits[`${cell}${row}`] = 0;
   }
   for (const { year, cell, amount } of withdrawals) edits[`${cell}${product.first + year - 1}`] = amount;
   const engine = new Spreadsheet(model, { [product.sheet]: edits });
   const rows = [];
-  for (let row = product.first; row < product.first + 106; row++) {
+  for (let row = product.first; row < product.first + MAX_POLICY_YEARS; row++) {
     const year = planValue(engine, product.sheet, row, product.year);
     if (!(year > 0)) break;
     const values = Object.fromEntries(columns.map(({ key }) => [key, planValue(engine, product.sheet, row, key)]));

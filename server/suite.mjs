@@ -45,6 +45,7 @@ const COLUMNS = [
   { key: 'mainDeath', label: '主险身故给付合计', group: '主险与领取' },
   { key: 'transfer', label: '转入万能账户', group: '万能账户与总利益' },
   { key: 'bonus', label: '持续奖金', group: '万能账户与总利益' },
+  { key: 'withdrawal', label: '部分领取', group: '万能账户与总利益', kind: 'withdrawal' },
   { key: 'account', label: '万能账户价值', group: '万能账户与总利益' },
   { key: 'accountCash', label: '万能账户现金价值', group: '万能账户与总利益' },
   { key: 'survival', label: '预期生存总利益', group: '万能账户与总利益' },
@@ -100,7 +101,7 @@ function annualizedReturn(premiums, benefit) {
 }
 
 function calculate(data, input) {
-  const { age, sex, term, premium, rate, dividend, receive } = input;
+  const { age, sex, term, premium, rate, dividend, receive, withdrawals = [] } = input;
   const selected = caseFor(data, age, sex, term);
   if (!selected) throw new Error('请选择有效的投保年龄、性别和缴费期间。');
   if (!(premium > 0) || !Number.isSafeInteger(Math.round(premium * 100))) throw new Error('请输入有效的首年保费。');
@@ -108,6 +109,10 @@ function calculate(data, input) {
   if (!Number.isFinite(dividend) || dividend < 0) throw new Error('请输入有效的分红演示水平。');
   const [basicRate, factors, sourceRows] = selected;
   if (receive && !factors[receive]) throw new Error('这个投保组合没有所选领取年龄，请重新选择。');
+  for (const { year } of withdrawals) {
+    if (year > sourceRows.length) throw new Error(`第 ${year} 年超出本方案的演算年度。`);
+  }
+  const withdrawalByYear = new Map(withdrawals.map(({ year, amount }) => [year, amount]));
 
   const basic = basicRate * premium / 1000;
   const factor = receive ? factors[receive] : 0;
@@ -132,7 +137,13 @@ function calculate(data, input) {
     const transfer = annuity + lumpSum + previousDividend;
     if (year <= 6) initialTransfers += transfer;
     const bonus = year < 6 ? 0 : (year === 6 ? initialTransfers : transfer) * data.transferFee;
-    const account = (previousAccount + transfer - transfer * data.transferFee) * (1 + rate / 100) + bonus;
+    // 原表当年展示领取金额，下一年度万能账户公式扣减上一年度领取。
+    const priorWithdrawal = withdrawalByYear.get(year - 1) ?? 0;
+    const withdrawal = withdrawalByYear.get(year) ?? 0;
+    const account = (previousAccount + transfer - transfer * data.transferFee) * (1 + rate / 100) + bonus - priorWithdrawal;
+    if (withdrawal > account + 1e-7) {
+      throw new Error(`第 ${year} 年的部分领取金额超过万能账户价值（${formatValue(account)} 元）。`);
+    }
     const fee = data.surrenderFees[Math.min(index, data.surrenderFees.length - 1)];
     const accountCash = account * (1 - fee);
     paid += payment;
@@ -149,7 +160,7 @@ function calculate(data, input) {
     const row = {
       year, age: startAge, endAge: startAge + 1, premium: payment, paid,
       annuity, lumpSum, dividend: previousDividend, yearEndDividend,
-      cash: mainCash, mainDeath, transfer, bonus, account, accountCash, survival,
+      cash: mainCash, mainDeath, transfer, bonus, withdrawal, account, accountCash, survival,
       death: account + yearEndDividend + mainDeath,
       simpleRate: (survival - paid) / paidYears,
       irr: annualizedReturn(payments, survival),
@@ -169,8 +180,18 @@ function formatValue(value, kind) {
   if (typeof value === 'string') return value;
   if (kind === 'percent') return `${(value * 100).toFixed(2)}%`;
   if (kind === 'integer') return String(value);
+  if (kind === 'withdrawal') return value.toLocaleString('zh-CN', { maximumFractionDigits: 2 });
   return Math.round(value).toLocaleString('zh-CN');
 }
+
+function plannedWithdrawalYears(input) {
+  const years = new Set(input.withdrawals?.filter(item => item.amount > 0).map(item => item.year));
+  for (const { from, to } of input.withdrawalStages ?? []) {
+    for (let year = from; year <= to; year++) years.add(year);
+  }
+  return years;
+}
+
 
 function planHeadline(plan) {
   const { age, sex, premium, term } = plan.input;
@@ -200,116 +221,132 @@ function wrap(ctx, text, width) {
   return lines;
 }
 
-function pageGroups(columns) {
-  if (columns.length <= 12) return [columns];
-  const [first, ...others] = columns;
-  const groups = [];
-  for (let i = 0; i < others.length; i += 11) groups.push([first, ...others.slice(i, i + 11)]);
-  return groups;
+const EMPTY_PDF_COLUMNS = '所选项目没有可展示的数据，请在「展示项目」里选择其他列。';
+
+function pdfCell(row, column) {
+  const value = row[column.key];
+  if (typeof value === 'string') return /^[\s—–-]*$/.test(value) ? '' : value.trim();
+  return Number.isFinite(value) && (value !== 0 || column.kind === 'integer')
+    ? formatValue(value, column.kind) : '';
+}
+
+function visiblePdfColumns(columns, rows) {
+  return columns.filter(column => rows.some(row => pdfCell(row, column) !== ''));
+}
+
+function pdfPageLayout(columnCount) {
+  if (columnCount > 12) return { width: 1588, height: 1123, pageSize: [1190.55, 841.89] };
+  if (columnCount > 9) return { width: 1123, height: 794, pageSize: [841.89, 595.28] };
+  return { width: 794, height: 1123, pageSize: [595.28, 841.89] };
+}
+
+function pdfColumnWidths(ctx, columns, values, gridWidth) {
+  fit(ctx, '', gridWidth, 12);
+  const desired = columns.map((column, i) => {
+    const baseline = column.kind === 'integer' ? 48 : 64;
+    return Math.max(baseline, ...values.map(row => ctx.measureText(row[i]).width + 12));
+  });
+  const desiredWidth = desired.reduce((sum, width) => sum + width, 0);
+  return desired.map(width => width / desiredWidth * gridWidth);
 }
 
 async function drawPlanPages(plan, columns, rows, createPage) {
   const title = plan.productTitle ?? PRODUCT;
-  const groups = pageGroups(columns);
-  const wide = columns.length > 9;
-  const width = wide ? 1123 : 794;
-  const height = wide ? 794 : 1123;
+  const { width, height, pageSize } = pdfPageLayout(columns.length);
   const left = 34;
   const gridWidth = width - 2 * left;
   const tableTop = plan.factor ? 167 : 146;
-  const headerHeight = 40;
+  const headerHeight = 48;
   const rowHeight = 18;
   const capacity = Math.floor((height - 96 - tableTop - headerHeight) / rowHeight);
-  const pagesPerGroup = Math.ceil(rows.length / capacity);
-  const rowsPerPage = Math.ceil(rows.length / pagesPerGroup);
-  const pageCount = groups.length * pagesPerGroup;
+  const pageCount = Math.ceil(rows.length / capacity);
+  const rowsPerPage = Math.ceil(rows.length / pageCount);
+  const values = rows.map(row => columns.map(column => pdfCell(row, column)));
+  const firstAnnuity = plan.rows.find(row => row.annuity > 0)?.year;
+  const withdrawalYears = plannedWithdrawalYears(plan.input);
   let pageNumber = 0;
 
-  for (const [groupIndex, group] of groups.entries()) {
-    for (let offset = 0; offset < rows.length; offset += rowsPerPage) {
-      const { ctx, finish } = createPage(width, height, wide);
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, 0, width, height);
-      ctx.fillStyle = '#783d35';
-      ctx.fillRect(left, 29, 33, 4);
-      fit(ctx, title, gridWidth, 29);
-      ctx.fillText(title, left, 56);
-      ctx.fillStyle = '#726763';
-      const subtitle = `利益演示试用版　数据版本 ${plan.version ?? '26.07'}　金额单位 元${groups.length > 1 ? `　展示分组 ${groupIndex + 1}/${groups.length}` : ''}`;
-      fit(ctx, subtitle, gridWidth, 12);
-      ctx.fillText(subtitle, left, 83);
+  for (let offset = 0; offset < rows.length; offset += rowsPerPage) {
+    const { ctx, finish } = createPage(width, height, pageSize);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.fillStyle = '#783d35';
+    ctx.fillRect(left, 29, 33, 4);
+    fit(ctx, title, gridWidth, 29);
+    ctx.fillText(title, left, 56);
+    ctx.fillStyle = '#726763';
+    const subtitle = `利益演示试用版　数据版本 ${plan.version ?? '26.07'}　金额单位 元`;
+    fit(ctx, subtitle, gridWidth, 12);
+    ctx.fillText(subtitle, left, 83);
 
-      ctx.fillStyle = '#f6eee9';
-      ctx.fillRect(left, 99, gridWidth, plan.factor ? 61 : 40);
-      ctx.fillStyle = '#50322e';
-      const summary = `${planHeadline(plan)}　总保费 ${formatValue(plan.totalPremium)} 元`;
-      fit(ctx, summary, gridWidth - 24, 15);
-      ctx.fillText(summary, left + 12, 112);
-      const assumptions = plan.assumptions ?? `账户演示利率 ${plan.input.rate}%　分红演示水平 ${plan.input.dividend}%　${plan.factor ? `一次性领取 ${plan.input.receive}岁` : '一次性领取 未设计'}`;
-      fit(ctx, assumptions, gridWidth - 24, 12);
-      ctx.fillText(assumptions, left + 12, 129);
-      if (plan.factor) {
-        const payout = `一次性领取演示金额 ${formatValue(plan.lumpAmount)} 元　基本保险金额 × ${plan.factor} 倍`;
-        fit(ctx, payout, gridWidth - 24, 12);
-        ctx.fillText(payout, left + 12, 148);
-      }
-
-      const narrowWidth = 47;
-      const narrowCount = group.filter(column => column.kind === 'integer').length;
-      const regularWidth = narrowCount === group.length
-        ? gridWidth / group.length
-        : (gridWidth - narrowCount * narrowWidth) / (group.length - narrowCount);
-      const widths = group.map(column => column.kind === 'integer' && narrowCount !== group.length ? narrowWidth : regularWidth);
-      ctx.fillStyle = '#603932';
-      ctx.fillRect(left, tableTop, gridWidth, headerHeight);
-      let x = left;
-      for (const [i, column] of group.entries()) {
-        ctx.fillStyle = '#ffffff';
-        fit(ctx, '', widths[i], 12);
-        const lines = wrap(ctx, column.label, widths[i] - 8);
-        ctx.textAlign = 'center';
-        lines.forEach((line, j) => ctx.fillText(line, x + widths[i] / 2, tableTop + headerHeight / 2 + (j - (lines.length - 1) / 2) * 13));
-        x += widths[i];
-      }
-      const firstAnnuity = plan.rows.find(row => row.annuity > 0)?.year;
-      const batch = rows.slice(offset, offset + rowsPerPage);
-      for (const [i, row] of batch.entries()) {
-        const y = tableTop + headerHeight + i * rowHeight;
-        const highlight = row.lumpSum > 0 || row.year === firstAnnuity;
-        ctx.fillStyle = highlight ? '#f3e4d6' : i % 2 ? '#fbf9f7' : '#ffffff';
-        ctx.fillRect(left, y, gridWidth, rowHeight);
-        x = left;
-        for (const [j, column] of group.entries()) {
-          const value = formatValue(row[column.key], column.kind);
-          ctx.fillStyle = ['survival','lumpSum'].includes(column.key) ? '#783d35' : '#272421';
-          ctx.textAlign = column.kind === 'integer' ? 'center' : 'right';
-          fit(ctx, value, widths[j] - 8, 12, 8);
-          ctx.fillText(value, column.kind === 'integer' ? x + widths[j] / 2 : x + widths[j] - 5, y + rowHeight / 2);
-          x += widths[j];
-        }
-      }
-      ctx.strokeStyle = '#e4dad5';
-      const bottom = tableTop + headerHeight + batch.length * rowHeight;
-      ctx.drawRule(left, width - left, bottom);
-      ctx.fillStyle = '#675a54';
-      ctx.textAlign = 'left';
-      let noteY = height - 75;
-      for (const note of plan.pdfNotes ?? RISK_NOTES) {
-        fit(ctx, '', gridWidth, 11);
-        for (const line of wrap(ctx, note, gridWidth)) { ctx.fillText(line, left, noteY); noteY += 13; }
-      }
-      ctx.textAlign = 'right';
-      ctx.fillText(`${++pageNumber} / ${pageCount}`, width - left, height - 23);
-
-      await finish();
+    ctx.fillStyle = '#f6eee9';
+    ctx.fillRect(left, 99, gridWidth, plan.factor ? 61 : 40);
+    ctx.fillStyle = '#50322e';
+    const summary = `${planHeadline(plan)}　总保费 ${formatValue(plan.totalPremium)} 元`;
+    fit(ctx, summary, gridWidth - 24, 15);
+    ctx.fillText(summary, left + 12, 112);
+    const assumptions = plan.assumptions ?? `账户演示利率 ${plan.input.rate}%　分红演示水平 ${plan.input.dividend}%${plan.factor ? `　一次性领取 ${plan.input.receive}岁` : ''}`;
+    fit(ctx, assumptions, gridWidth - 24, 12);
+    ctx.fillText(assumptions, left + 12, 129);
+    if (plan.factor) {
+      const payout = `一次性领取演示金额 ${formatValue(plan.lumpAmount)} 元　基本保险金额 × ${plan.factor} 倍`;
+      fit(ctx, payout, gridWidth - 24, 12);
+      ctx.fillText(payout, left + 12, 148);
     }
+
+    const widths = pdfColumnWidths(ctx, columns, values, gridWidth);
+    ctx.fillStyle = '#603932';
+    ctx.fillRect(left, tableTop, gridWidth, headerHeight);
+    let x = left;
+    for (const [i, column] of columns.entries()) {
+      ctx.fillStyle = '#ffffff';
+      fit(ctx, '', widths[i], 12);
+      const lines = wrap(ctx, column.label, widths[i] - 8);
+      ctx.textAlign = 'center';
+      lines.forEach((line, j) => ctx.fillText(line, x + widths[i] / 2, tableTop + headerHeight / 2 + (j - (lines.length - 1) / 2) * 13));
+      x += widths[i];
+    }
+    const batch = rows.slice(offset, offset + rowsPerPage);
+    for (const [i, row] of batch.entries()) {
+      const y = tableTop + headerHeight + i * rowHeight;
+      const highlight = row.lumpSum > 0 || row.year === firstAnnuity || withdrawalYears.has(row.year);
+      ctx.fillStyle = highlight ? '#f3e4d6' : i % 2 ? '#fbf9f7' : '#ffffff';
+      ctx.fillRect(left, y, gridWidth, rowHeight);
+      x = left;
+      for (const [j, column] of columns.entries()) {
+        const value = values[offset + i][j];
+        if (!value) {
+          x += widths[j];
+          continue;
+        }
+        ctx.fillStyle = ['survival','lumpSum'].includes(column.key) ? '#783d35' : '#272421';
+        ctx.textAlign = column.kind === 'integer' ? 'center' : 'right';
+        fit(ctx, value, widths[j] - 8, 12, 8);
+        ctx.fillText(value, column.kind === 'integer' ? x + widths[j] / 2 : x + widths[j] - 5, y + rowHeight / 2);
+        x += widths[j];
+      }
+    }
+    ctx.strokeStyle = '#e4dad5';
+    const bottom = tableTop + headerHeight + batch.length * rowHeight;
+    ctx.drawRule(left, width - left, bottom);
+    ctx.fillStyle = '#675a54';
+    ctx.textAlign = 'left';
+    let noteY = height - 75;
+    for (const note of plan.pdfNotes ?? RISK_NOTES) {
+      fit(ctx, '', gridWidth, 11);
+      for (const line of wrap(ctx, note, gridWidth)) { ctx.fillText(line, left, noteY); noteY += 13; }
+    }
+    ctx.textAlign = 'right';
+    ctx.fillText(`${++pageNumber} / ${pageCount}`, width - left, height - 23);
+
+    await finish();
   }
 }
 
 async function exportPlanPdf(plan, columns, rows) {
   const pdf = await globalThis.PDFLib.PDFDocument.create();
   pdf.setTitle(`${plan.productTitle ?? PRODUCT} 利益演示`);
-  await drawPlanPages(plan, columns, rows, (width, height, wide) => {
+  await drawPlanPages(plan, columns, rows, (width, height, pageSize) => {
     const canvas = document.createElement('canvas');
     canvas.width = width * 2;
     canvas.height = height * 2;
@@ -324,7 +361,7 @@ async function exportPlanPdf(plan, columns, rows) {
     };
     return { ctx, async finish() {
       const image = await pdf.embedJpg(canvas.toDataURL('image/jpeg', 0.95));
-      const page = pdf.addPage(wide ? [841.89, 595.28] : [595.28, 841.89]);
+      const page = pdf.addPage(pageSize);
       page.drawImage(image, { x: 0, y: 0, width: page.getWidth(), height: page.getHeight() });
     } };
   });
@@ -593,7 +630,12 @@ function columnNumber(column) {
 
 
 const SUITE_PRODUCTS = {
-  xingfu: { title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3], initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 } },
+  xingfu: {
+    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3],
+    initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 },
+    withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
+    withdrawalNote: '原表提示，退休前领取不得超过已产生年金及分红累计的 20%。',
+  },
   'changle-vip': {
     title: '泰康长乐金生（尊享版）保险产品计划', short: '长乐金生（尊享版）', version: '26.10', account: [1, 4],
     sheet: '计划及演示页', detail: '完整利益演示', first: 6, detailFirst: 18, end: 'R', notes: 'B2',
@@ -658,6 +700,7 @@ function suiteColumns(id, model) {
     if (typeof label !== 'string' || !label.trim() || label.includes('算IRR用')) return [];
     const key = String.fromCharCode(65 + index);
     const kind = [product.year, product.age, product.endAge].includes(key) ? 'integer'
+      : product.account && product.withdrawals.some(item => item.cell === key) ? 'withdrawal'
       : /比例|增长率|单利|irr/i.test(label) ? 'percent' : undefined;
     const group = kind === 'integer' || /保费/.test(label) ? '基础信息'
       : /领取|红利|分红|年金|现价|现金价值/.test(label) ? '保单利益与领取' : '账户与总利益';
@@ -703,11 +746,36 @@ function planValue(engine, sheet, row, column) {
   }
 }
 
+const MAX_POLICY_YEARS = 106;
+
+function expandWithdrawalStages(stages, product) {
+  if (stages == null) return [];
+  if (!product.account || !Array.isArray(stages) || stages.length > MAX_POLICY_YEARS) {
+    throw new Error('请检查万能账户领取阶段。');
+  }
+  const [{ cell }] = product.withdrawals;
+  const years = new Map();
+  for (const [index, stage] of stages.entries()) {
+    const { from, to, amount } = stage ?? {};
+    if (!Number.isInteger(from) || !Number.isInteger(to) || from < 1 || to > MAX_POLICY_YEARS || to < from) {
+      throw new Error(`请检查第 ${index + 1} 阶段的起止保单年度，结束年度须大于或等于开始年度。`);
+    }
+    if (!(amount > 0) || !Number.isSafeInteger(Math.round(amount * 100)) || Math.round(amount * 100) / 100 !== amount) {
+      throw new Error(`请填写第 ${index + 1} 阶段的每年领取金额，最多两位小数。`);
+    }
+    for (let year = from; year <= to; year++) {
+      if (years.has(year)) throw new Error(`领取阶段在第 ${year} 年重叠，请调整起止年度。`);
+      years.set(year, { year, cell, amount });
+    }
+  }
+  return [...years.values()].sort((a, b) => a.year - b.year);
+}
+
 function validateWithdrawals(withdrawals, product) {
   const used = new Set();
   return (withdrawals ?? []).filter(({ amount }) => amount !== 0).map(({ year, cell, amount }) => {
     const key = `${cell}${year}`;
-    if (!Number.isInteger(year) || year < 1 || year > 106 || !product.withdrawals.some(item => item.cell === cell) ||
+    if (!Number.isInteger(year) || year < 1 || year > MAX_POLICY_YEARS || !product.withdrawals.some(item => item.cell === cell) ||
         !(amount > 0) || !Number.isSafeInteger(Math.round(amount * 100)) || used.has(key)) {
       throw new Error('请检查部分领取的保单年度、项目和金额。同一年度的同一项目只能填一次。');
     }
@@ -716,9 +784,18 @@ function validateWithdrawals(withdrawals, product) {
   });
 }
 
+function annualWithdrawals(input, product) {
+  if (input.withdrawalStages != null) {
+    if (input.withdrawals?.length) throw new Error('请选择一种部分领取填写方式。');
+    return expandWithdrawalStages(input.withdrawalStages, product);
+  }
+  return validateWithdrawals(input.withdrawals, product);
+}
+
 function calculateSuite(id, model, input, columns = suiteColumns(id, model)) {
-  if (id === 'xingfu') return calculate(model, input);
   const product = SUITE_PRODUCTS[id];
+  const withdrawals = annualWithdrawals(input, product);
+  if (id === 'xingfu') return { ...calculate(model, { ...input, withdrawals }), input };
   const { age, sex, term, premium, rate, dividend, start } = input;
   const { terms, starts } = suiteChoices(id, model, age, sex, term);
   if (!terms.includes(term) || product.startChoices && !starts.includes(start)) {
@@ -729,19 +806,18 @@ function calculateSuite(id, model, input, columns = suiteColumns(id, model)) {
   if (product.account && (!Number.isFinite(rate) || rate < product.account[0] || rate > product.account[1])) {
     throw new Error(`万能账户演示利率请输入 ${product.account[0]}% 至 ${product.account[1]}%。`);
   }
-  const withdrawals = validateWithdrawals(input.withdrawals, product);
   const edits = {};
   for (const [key, address] of Object.entries(product.controls)) {
     edits[address] = key === 'sex' ? (sex === 'M' ? '男' : '女') : key === 'start' ? startLabel(start)
       : key === 'dividend' || key === 'rate' ? input[key] / 100 : input[key];
   }
   for (const { cell } of product.withdrawals) {
-    for (let row = product.first; row < product.first + 106; row++) edits[`${cell}${row}`] = 0;
+    for (let row = product.first; row < product.first + MAX_POLICY_YEARS; row++) edits[`${cell}${row}`] = 0;
   }
   for (const { year, cell, amount } of withdrawals) edits[`${cell}${product.first + year - 1}`] = amount;
   const engine = new Spreadsheet(model, { [product.sheet]: edits });
   const rows = [];
-  for (let row = product.first; row < product.first + 106; row++) {
+  for (let row = product.first; row < product.first + MAX_POLICY_YEARS; row++) {
     const year = planValue(engine, product.sheet, row, product.year);
     if (!(year > 0)) break;
     const values = Object.fromEntries(columns.map(({ key }) => [key, planValue(engine, product.sheet, row, key)]));
@@ -806,9 +882,8 @@ export function previewTicket(request) {
 }
 
 
-
-function vectorPage(PDFLib, pdf, font, width, height, wide) {
-  const page = pdf.addPage(wide ? [841.89, 595.28] : [595.28, 841.89]);
+function vectorPage(PDFLib, pdf, font, width, height, pageSize) {
+  const page = pdf.addPage(pageSize);
   const scale = page.getWidth() / width;
   const pointY = y => (height - y) * scale;
   const color = value => PDFLib.rgb(...value.slice(1).match(/../g).map(part => Number.parseInt(part, 16) / 255));
@@ -842,7 +917,7 @@ async function renderVectorPdf(plan, columns, { PDFLib, fontkit, pdfFont }) {
   pdf.registerFontkit(fontkit);
   const font = await pdf.embedFont(pdfFont);
   await drawPlanPages(plan, columns, plan.rows,
-    (width, height, wide) => vectorPage(PDFLib, pdf, font, width, height, wide));
+    (width, height, pageSize) => vectorPage(PDFLib, pdf, font, width, height, pageSize));
   return pdf.save();
 }
 
@@ -850,26 +925,27 @@ import { gunzipSync } from 'node:zlib';
 
 const suiteModels = new Map();
 
-function suiteJson(body, status = 200) {
-  return new Response(JSON.stringify(body), {
-    status, headers: { ...pdfHeaders, 'Content-Type': 'application/json; charset=utf-8' },
-  });
-}
-
 function suitePlan({ product, input, columns: keys }, wantsPdf) {
   if (!Object.hasOwn(suiteModelData, product) || !input || typeof input !== 'object') {
     throw new Error('请选择产品版本，并填写投保信息。');
   }
-  const { age, sex, term, premium, rate, dividend, start, receive, withdrawals } = input;
+  const { age, sex, term, premium, rate, dividend, start, withdrawals, withdrawalStages } = input;
   if (!Number.isInteger(age) || !Number.isInteger(term) || !['M', 'F'].includes(sex) ||
       !Number.isFinite(premium) || !Number.isFinite(dividend) ||
       withdrawals != null && (!Array.isArray(withdrawals) || withdrawals.length > 212 ||
         withdrawals.some(item => !item || !Number.isFinite(item.amount)))) {
     throw new Error('请检查投保信息、演示参数和领取金额。');
   }
-  const values = product === 'xingfu' ? normalizePlanInput(input) : {
-    age, sex, term, premium, rate, dividend, start,
-    withdrawals: withdrawals?.map(({ year, cell, amount }) => ({ year, cell, amount })),
+  if (withdrawalStages != null && (!Array.isArray(withdrawalStages) || withdrawalStages.length > MAX_POLICY_YEARS)) {
+    throw new Error('请检查万能账户领取阶段。');
+  }
+  const values = {
+    ...(product === 'xingfu' ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
+    ...(withdrawals != null && { withdrawals: withdrawals.map(({ year, cell, amount }) => ({ year, cell, amount })) }),
+    ...(withdrawalStages != null && { withdrawalStages: withdrawalStages.map(stage => {
+      const { from, to, amount } = stage ?? {};
+      return { from, to, amount };
+    }) }),
   };
   if (!suiteModels.has(product)) suiteModels.set(product, JSON.parse(gunzipSync(Buffer.from(suiteModelData[product], 'base64'))));
   const model = suiteModels.get(product);
@@ -882,6 +958,12 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
   return { plan, columns: wantsPdf ? columns.filter(column => keys.includes(column.key)) : columns };
 }
 
+function suiteJson(body, status = 200) {
+  return new Response(JSON.stringify(body), {
+    status, headers: { ...pdfHeaders, 'Content-Type': 'application/json; charset=utf-8' },
+  });
+}
+
 async function submitSuite(request, action, fixedEntry) {
   if (request.headers.get('Sec-Fetch-Site') === 'cross-site') return suiteJson({ error: '请从计划书页面提交。' }, 403);
   if (!request.headers.get('Content-Type')?.startsWith('application/json')) return suiteJson({ error: '请求参数格式有误。' }, 415);
@@ -892,6 +974,10 @@ async function submitSuite(request, action, fixedEntry) {
     if (body.length > 18000) return suiteJson({ error: '请求参数过长。' }, 413);
     data = JSON.parse(body);
     result = suitePlan(data, action !== 'plan');
+    if (action !== 'plan') {
+      result.columns = visiblePdfColumns(result.columns, result.plan.rows);
+      if (!result.columns.length) return suiteJson({ error: EMPTY_PDF_COLUMNS }, 400);
+    }
   } catch (error) {
     return suiteJson({ error: error instanceof TypeError || error instanceof SyntaxError ? '请检查计划书输入。' : error.message }, 400);
   }
@@ -899,7 +985,11 @@ async function submitSuite(request, action, fixedEntry) {
   if (pdfKey.length !== 32) return suiteJson({ error: 'PDF 服务尚未配置。' }, 503);
   const ticket = fixedEntry ? null : previewTicket(request);
   const expires = Math.min(Date.now() + 30 * 60 * 1000, ticket?.expires ?? Infinity);
-  const token = sealPdfPlan({ product: data.product, input: result.plan.input, columns: data.columns, expires }, pdfKey);
+  // Store stages compactly so a full set of distinct annual amounts fits in the PDF URL.
+  const { withdrawalStages, ...input } = result.plan.input;
+  const stages = withdrawalStages?.map(({ from, to, amount }) => [from, to, amount]);
+  const columns = result.columns.map(column => column.key);
+  const token = sealPdfPlan({ product: data.product, input, stages, columns, expires }, pdfKey);
   if (token.length > 5000) return suiteJson({ error: '领取项目较多，请分成两份方案生成 PDF。' }, 413);
   const output = { download: `/api/suite/save-${token}.pdf${ticket?.query ?? ''}` };
   if (action === 'file') {
@@ -930,7 +1020,10 @@ export default async function onRequest({ request, params, fixedEntry = false })
   catch { return pdfText('PDF 链接已失效，请重新生成。', 404); }
   if (data.expires <= Date.now()) return pdfText('PDF 链接已过期，请重新生成。', 410);
   try {
-    const { plan, columns } = suitePlan(data, true);
+    if (data.stages) data.input.withdrawalStages = data.stages.map(([from, to, amount]) => ({ from, to, amount }));
+    const { plan, columns: selected } = suitePlan(data, true);
+    const columns = visiblePdfColumns(selected, plan.rows);
+    if (!columns.length) return pdfText(EMPTY_PDF_COLUMNS, 400);
     const headers = {
       ...pdfHeaders, 'Content-Type': 'application/pdf',
       'Content-Disposition': `attachment; filename="insurance-plan.pdf"; filename*=UTF-8''${encodeURIComponent(planPdfFilename(plan))}`,

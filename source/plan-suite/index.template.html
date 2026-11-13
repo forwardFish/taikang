@@ -34,6 +34,12 @@
     .suite-table tbody tr.key-year { background: var(--sand); }
     .suite-table-hint { display: none; }
     .suite-withdraw-note { margin: 8px 0; }
+    .withdrawal-stage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
+    .withdrawal-stage-header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+    .withdrawal-stage-header h3 { margin: 0; font-size: 14px; }
+    .withdrawal-stage label { display: grid; align-content: start; gap: 5px; min-width: 0; font-size: 13px; }
+    .withdrawal-stage input { width: 100%; min-width: 0; min-height: 44px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--white); color: var(--pine); font-size: 16px; }
+    .suite-table td.withdrawal-value { color: var(--clay); font-weight: 700; }
     @media (max-width: 680px) {
       .wrap { width: min(100% - 24px, 520px); }
       .workspace { padding-bottom: max(16px, env(safe-area-inset-bottom)); }
@@ -47,6 +53,8 @@
       .suite-withdraw { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
       .suite-withdraw :is(input,select,button) { min-height: 44px; padding-inline: 7px; font-size: 16px; }
       .suite-withdraw select { grid-area: 1 / 2; }
+      .withdrawal-stage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .withdrawal-stage label:last-child { grid-column: 1 / -1; }
       .form-actions { display: grid; gap: 10px; }
       .form-actions .primary { width: 100%; }
       .preview-toolbar { flex-wrap: wrap; }
@@ -99,6 +107,13 @@
               <div class="field" id="rate-field"><label for="rate">账户演示利率</label><div class="unit-field"><input id="rate" type="number" step="0.01" required><span>%</span></div></div>
               <div class="field" id="start-field" hidden><label id="start-label" for="start">领取设置</label><select id="start"></select></div>
               <p id="start-help" class="field-help" hidden></p>
+            </section>
+            <section class="panel" id="withdrawal-schedule" aria-labelledby="withdrawal-heading" hidden>
+              <div class="panel-heading"><h2 id="withdrawal-heading">万能账户部分领取</h2></div>
+              <p class="field-help suite-withdraw-note">起止年度都计入，每年按该段金额演示。不同阶段的年度不可重叠。</p>
+              <p class="field-help suite-withdraw-note" id="withdrawal-stage-note" hidden></p>
+              <div id="withdrawal-stages"></div>
+              <button type="button" class="secondary" id="add-withdrawal-stage">＋ 添加领取阶段</button>
             </section>
             <details class="panel" id="withdrawals" hidden><summary class="suite-label">部分领取设计</summary><p class="field-help suite-withdraw-note" id="withdrawal-note"></p><div id="withdraw-list"></div><button type="button" class="secondary" id="add-withdrawal">＋ 添加领取</button></details>
           </div>

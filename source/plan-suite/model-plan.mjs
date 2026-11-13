@@ -6,16 +6,23 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
   if (!Object.hasOwn(suiteModelData, product) || !input || typeof input !== 'object') {
     throw new Error('请选择产品版本，并填写投保信息。');
   }
-  const { age, sex, term, premium, rate, dividend, start, receive, withdrawals } = input;
+  const { age, sex, term, premium, rate, dividend, start, withdrawals, withdrawalStages } = input;
   if (!Number.isInteger(age) || !Number.isInteger(term) || !['M', 'F'].includes(sex) ||
       !Number.isFinite(premium) || !Number.isFinite(dividend) ||
       withdrawals != null && (!Array.isArray(withdrawals) || withdrawals.length > 212 ||
         withdrawals.some(item => !item || !Number.isFinite(item.amount)))) {
     throw new Error('请检查投保信息、演示参数和领取金额。');
   }
-  const values = product === 'xingfu' ? normalizePlanInput(input) : {
-    age, sex, term, premium, rate, dividend, start,
-    withdrawals: withdrawals?.map(({ year, cell, amount }) => ({ year, cell, amount })),
+  if (withdrawalStages != null && (!Array.isArray(withdrawalStages) || withdrawalStages.length > MAX_POLICY_YEARS)) {
+    throw new Error('请检查万能账户领取阶段。');
+  }
+  const values = {
+    ...(product === 'xingfu' ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
+    ...(withdrawals != null && { withdrawals: withdrawals.map(({ year, cell, amount }) => ({ year, cell, amount })) }),
+    ...(withdrawalStages != null && { withdrawalStages: withdrawalStages.map(stage => {
+      const { from, to, amount } = stage ?? {};
+      return { from, to, amount };
+    }) }),
   };
   if (!suiteModels.has(product)) suiteModels.set(product, JSON.parse(gunzipSync(Buffer.from(suiteModelData[product], 'base64'))));
   const model = suiteModels.get(product);

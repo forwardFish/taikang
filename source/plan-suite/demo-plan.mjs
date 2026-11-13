@@ -36,7 +36,7 @@ function demoColumn({ key, label, kind }, values) {
 function suitePlan({ product, input, columns: keys }, wantsPdf) {
   if (!Object.hasOwn(suiteModelData, product) || !input) throw new Error('请选择产品版本并填写投保信息。');
   const config = SUITE_PRODUCTS[product];
-  const { age, sex, term, premium, rate, dividend, start, receive, withdrawals = [] } = input;
+  const { age, sex, term, premium, rate, dividend, start, receive, withdrawalStages } = input;
   const choices = demoChoices(product, age, term);
   const selectedStart = product === 'xingfu' ? receive : start;
   if (!Number.isInteger(age) || !choices.terms.includes(term) || !['M', 'F'].includes(sex) ||
@@ -45,9 +45,8 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
       (config.startChoices || product === 'xingfu' && receive) && !choices.starts.includes(selectedStart)) {
     throw new Error('请检查演示年龄、缴费期间、金额和领取设置。');
   }
-  if (!Array.isArray(withdrawals) || withdrawals.length > 212 || withdrawals.some(item => !item ||
-      !Number.isInteger(item.year) || item.year < 1 || item.year > 105 - age ||
-      !Number.isFinite(item.amount) || item.amount < 0 || !config.withdrawals?.some(rule => rule.cell === item.cell))) {
+  const withdrawals = annualWithdrawals(input, config);
+  if (withdrawals.some(item => item.year > 105 - age)) {
     throw new Error('请检查模拟领取项目和金额。');
   }
   const all = suiteModelData[product];
@@ -82,7 +81,9 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
       account, accountCash: account, survival, death, simpleRate, irr: simpleRate, cumulative, dividendCash, withdrawal, dividendWithdrawal };
     rows.push({ ...values, ...Object.fromEntries(all.map(column => [column.key, demoColumn(column, values)])) });
   }
-  const plan = { input: { age, sex, term, premium, rate, dividend, start, receive, withdrawals }, rows, factor: lumpAmount ? 1 : 0,
+  const plan = { input: { age, sex, term, premium, rate, dividend, start, receive,
+    ...(withdrawalStages != null ? { withdrawalStages: withdrawalStages.map(({ from, to, amount }) => ({ from, to, amount })) } : { withdrawals }) },
+    rows, factor: lumpAmount ? 1 : 0,
     lumpAmount, totalPremium: premium * term, productTitle: `${config.title} · 模拟版`, shortTitle: `${config.short}模拟版`,
     version: '模拟数据', assumptions: demoNotice, notes: demoNotice, pdfNotes: [demoNotice, '模拟金额不用于实际投保、收益比较或客户说明。'] };
   return { plan, columns: wantsPdf ? all.filter(column => keys.includes(column.key)) : all };

@@ -30,9 +30,12 @@ function options(select, values, label, preferred) {
 }
 
 function recommend() {
-  if (state.id !== 'xingfu') return current().defaults.split(' ');
-  const choices = [...DEFAULT_COLUMNS];
-  if (Number(element('start').value)) choices.splice(choices.indexOf('annuity') + 1, 0, 'lumpSum');
+  const choices = state.id === 'xingfu' ? [...DEFAULT_COLUMNS] : current().defaults.split(' ');
+  if (state.id === 'xingfu' && Number(element('start').value)) choices.splice(choices.indexOf('annuity') + 1, 0, 'lumpSum');
+  if (current().account &&
+      [...element('withdrawal-stages').querySelectorAll('[data-withdrawal-amount]')].some(input => input.valueAsNumber > 0)) {
+    choices.push(current().withdrawals[0].cell);
+  }
   return choices;
 }
 
@@ -87,10 +90,13 @@ function fillExample() {
   element('rate-field').hidden = rate.disabled;
   if (current().account) [rate.min, rate.max] = current().account;
   const withdrawals = element('withdrawals');
-  withdrawals.hidden = !current().withdrawals?.length;
+  withdrawals.hidden = !!current().account || !current().withdrawals?.length;
   withdrawals.open = false;
   element('withdraw-list').replaceChildren();
   element('withdrawal-note').textContent = current().withdrawalNote ?? '按保单年度填写金额，演示结果将随领取金额重新计算。';
+  element('withdrawal-schedule').hidden = !current().account;
+  element('withdrawal-stages').replaceChildren();
+  message('withdrawal-stage-note', current().account ? current().withdrawalNote ?? '' : '');
   updateChoices(defaults.term, defaults.start ?? defaults.receive ?? 0);
   message('form-error', '');
 }
@@ -152,10 +158,15 @@ function readInputs() {
     const [year, item, amount] = row.querySelectorAll('input,select');
     return year.value || amount.value ? [{ year: year.valueAsNumber, cell: item.value, amount: amount.valueAsNumber }] : [];
   });
+  const withdrawalStages = [...element('withdrawal-stages').children].map(row => {
+    const [from, to, amount] = row.querySelectorAll('input');
+    return { from: from.valueAsNumber, to: to.valueAsNumber, amount: amount.valueAsNumber };
+  });
   const receive = Number(element('start').value);
   return { age: element('age').valueAsNumber, sex: element('sex').value, term: Number(element('term').value),
     premium: element('premium').valueAsNumber, dividend: element('dividend').valueAsNumber,
-    rate: element('rate').valueAsNumber, start: receive, receive, withdrawals };
+    rate: element('rate').valueAsNumber, start: receive, receive,
+    ...(withdrawalStages.length ? { withdrawalStages } : { withdrawals }) };
 }
 
 function renderPreview() {
@@ -171,11 +182,13 @@ function renderPreview() {
   for (const column of columns) head.append(create('th', column.label, column.key === yearKey ? 'policy-year' : undefined));
   element('plan-head').replaceChildren(head);
   const firstAnnuity = plan.rows.find(row => row.annuity > 0)?.year;
-  const withdrawalYears = new Set(plan.input.withdrawals?.map(row => row.year) ?? []);
+  const withdrawalYears = plannedWithdrawalYears(plan.input);
   element('plan-body').replaceChildren(...plan.rows.map(row => {
     const tr = create('tr', undefined, row.lumpSum || row.year === firstAnnuity || withdrawalYears.has(row.year) ? 'key-year' : '');
     for (const column of columns) {
-      tr.append(create('td', formatValue(row[column.key], column.kind), column.key === yearKey ? 'policy-year' : undefined));
+      const className = column.key === yearKey ? 'policy-year' :
+        column.kind === 'withdrawal' && row[column.key] > 0 ? 'withdrawal-value' : undefined;
+      tr.append(create('td', formatValue(row[column.key], column.kind), className));
     }
     return tr;
   }));
@@ -236,6 +249,51 @@ function addWithdrawal() {
   year.focus();
 }
 
+function updateWithdrawalStages() {
+  for (const [index, row] of [...element('withdrawal-stages').children].entries()) {
+    const title = `领取阶段 ${index + 1}`;
+    row.querySelector('h3').textContent = title;
+    row.querySelector('button').setAttribute('aria-label', `删除${title}`);
+  }
+  updateSelection();
+}
+
+function addWithdrawalStage() {
+  const list = element('withdrawal-stages');
+  const selected = selectedByProduct.get(state.id);
+  const withdrawalColumn = current().withdrawals[0].cell;
+  if (!list.children.length && selected && !selected.includes(withdrawalColumn)) {
+    selectedByProduct.set(state.id, [...selected, withdrawalColumn]);
+  }
+  const row = create('div', undefined, 'withdrawal-stage');
+  const header = create('div', undefined, 'withdrawal-stage-header');
+  const remove = create('button', '删除', 'text-button');
+  remove.type = 'button';
+  remove.addEventListener('click', () => {
+    row.remove();
+    updateWithdrawalStages();
+  });
+  header.append(create('h3'), remove);
+  row.append(header);
+  for (const [label, amount] of [['开始年度', false], ['结束年度', false], ['每年领取金额（元）', true]]) {
+    const field = create('label', label);
+    const input = create('input');
+    Object.assign(input, { type: 'number', required: true, min: amount ? 0.01 : 1, step: amount ? 0.01 : 1 });
+    input.inputMode = amount ? 'decimal' : 'numeric';
+    if (amount) {
+      input.dataset.withdrawalAmount = '';
+      input.addEventListener('input', updateSelection);
+    } else {
+      input.max = MAX_POLICY_YEARS;
+    }
+    field.append(input);
+    row.append(field);
+  }
+  list.append(row);
+  updateWithdrawalStages();
+  row.querySelector('input').focus();
+}
+
 productSelect.replaceChildren(...Object.entries(SUITE_PRODUCTS).map(([id, config]) => {
   const option = create('option', `${config.short} · ${config.version}`);
   option.value = id;
@@ -252,6 +310,7 @@ for (const button of document.querySelectorAll('[data-premium]')) button.addEven
   updateAmounts();
 });
 element('add-withdrawal').addEventListener('click', addWithdrawal);
+element('add-withdrawal-stage').addEventListener('click', addWithdrawalStage);
 element('back').addEventListener('click', showForm);
 for (const id of ['form-settings', 'preview-settings']) element(id).addEventListener('click', openSettings);
 element('select-all').addEventListener('click', () => markChoices(state.columns.map(column => column.key)));
@@ -314,7 +373,11 @@ element('share-pdf').addEventListener('click', async () => {
 element('export').addEventListener('click', async () => {
   const version = ++state.exportVersion;
   const plan = state.plan;
-  const columns = selectedColumns();
+  const columns = visiblePdfColumns(selectedColumns(), plan.rows);
+  if (!columns.length) {
+    message('pdf-status', EMPTY_PDF_COLUMNS);
+    return;
+  }
   element('export').disabled = true;
   message('pdf-status', '正在生成 PDF…');
   try {
