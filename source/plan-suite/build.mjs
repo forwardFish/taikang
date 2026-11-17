@@ -8,19 +8,21 @@ import { DEMO_INPUT, demoChoices } from './demo-plan.mjs';
 const root = import.meta.dirname;
 const vercel = process.argv.includes('--vercel');
 const demo = vercel && process.argv.includes('--demo');
+const includeXingfuB = !demo && process.argv.includes('--with-xingfu-b');
 const hosted = vercel || process.argv.includes('--wechat');
 const realSite = vercel && !demo;
 const read = name => readFile(resolve(root, name), 'utf8');
 const shared = '../xingfu-plan/';
 const project = resolve(root, '../..');
 const pdfLibraryPath = resolve(project, 'node_modules/pdf-lib/dist/pdf-lib.min.js');
-const [template, style, pdfLibrary, calculation, pdf, spreadsheet, products, sharing, previewShare, app] = await Promise.all([
+const [template, style, pdfLibrary, calculation, pdf, spreadsheet, xingfuB, products, sharing, previewShare, app] = await Promise.all([
   read('index.template.html'), read(shared + 'style.css'), readFile(pdfLibraryPath, 'utf8'),
-  read(shared + 'calculate.mjs'), read(shared + 'export-pdf.mjs'), read('spreadsheet.mjs'), read('products.mjs'),
+  read(shared + 'calculate.mjs'), read(shared + 'export-pdf.mjs'), read('spreadsheet.mjs'), read('xingfu-b.mjs'), read('products.mjs'),
   read(shared + 'pdf-sharing.mjs'), read(shared + 'preview-share.mjs'), read('app.mjs'),
 ]);
 const library = pdfLibrary.replace(/^\/\/# sourceMappingURL=.*$/gm, '');
-const models = await Promise.all(Object.keys(SUITE_PRODUCTS).map(async id => [id,
+const productIds = Object.keys(SUITE_PRODUCTS).filter(id => id !== 'xingfu-b' || includeXingfuB);
+const models = await Promise.all(productIds.map(async id => [id,
   await read(id === 'xingfu' ? shared + 'inspection/model.json' : `models/${id}.json`),
 ]));
 const compressed = demo ? null : Object.fromEntries(models.map(([id, model]) => [id, gzipSync(model, { level: 6 }).toString('base64')]));
@@ -49,7 +51,7 @@ function publicData() {
 }
 
 const previewShareCode = hosted && !realSite ? [previewShare, 'setupPreviewShare();'] : [];
-const browserCode = plain([calculation, pdf, ...(hosted ? [] : [spreadsheet]), products, sharing, app, ...previewShareCode].join('\n'));
+const browserCode = plain([calculation, pdf, ...(hosted ? [] : [spreadsheet]), xingfuB, products, sharing, app, ...previewShareCode].join('\n'));
 const trialLabel = demo ? '模拟资料' : vercel ? '' : hosted ? '微信试用' : '本地试用';
 const page = template.replace('<!-- TRIAL BADGE -->', trialLabel ? `<span class="trial">${trialLabel}</span>` : '')
   .replace('<body>', realSite ? '<body class="real-site">' : '<body>')
@@ -80,10 +82,10 @@ if (hosted) {
     `const pdfFont = Buffer.from('${font.toString('base64')}', 'base64');`,
     `const pdfKey = ${pdfKey};`,
     `const suiteModelData = ${JSON.stringify(demo ? demoColumns : compressed)};`,
-    plain([calculation, pdf, ...(demo ? [] : [spreadsheet]), products].join('\n')), access, plain(vector),
+    plain([calculation, pdf, ...(demo ? [] : [spreadsheet]), xingfuB, products].join('\n')), access, plain(vector),
     demo ? plain(provider) : provider, handler,
   ].join('\n');
-  const handoff = render(shareTemplate.replace(' · 幸福享裕', ' · 六款产品'), moduleTag(`${plain(sharing)}\n${sharePage}`));
+  const handoff = render(shareTemplate.replace(' · 幸福享裕', ' · 计划书工作台'), moduleTag(`${plain(sharing)}\n${sharePage}`));
   await Promise.all([mkdir(functions, { recursive: true }), mkdir(directory, { recursive: true })]);
   await Promise.all([
     writeFile(resolve(directory, 'six.html'), html), writeFile(resolve(directory, 'six-pdf.html'), handoff),
@@ -104,7 +106,7 @@ if (hosted) {
   }
   console.log(JSON.stringify({ products: models.length, htmlBytes: Buffer.byteLength(html), functionBytes: Buffer.byteLength(functionCode) }));
 } else {
-  const directory = resolve(project, 'offline');
+  const directory = resolve(project, includeXingfuB ? '.build/offline' : 'offline');
   await mkdir(directory, { recursive: true });
   const output = resolve(directory, 'index.html');
   await writeFile(output, html);

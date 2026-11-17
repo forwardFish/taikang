@@ -58,7 +58,7 @@ export function payoutChoices(data, age, sex, term) {
   return selected ? Object.keys(selected[1]).map(Number) : [];
 }
 
-function annualizedReturn(premiums, benefit) {
+export function annualizedReturn(premiums, benefit) {
   if (!(benefit > 0)) return null;
   const balance = rate => premiums.reduce(
     (value, premium, i) => value - premium * (1 + rate) ** (premiums.length - i), benefit,

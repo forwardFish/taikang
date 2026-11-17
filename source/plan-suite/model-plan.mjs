@@ -17,7 +17,7 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
     throw new Error('请检查万能账户领取阶段。');
   }
   const values = {
-    ...(product === 'xingfu' ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
+    ...(SUITE_PRODUCTS[product].lumpPayout ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
     ...(withdrawals != null && { withdrawals: withdrawals.map(({ year, cell, amount }) => ({ year, cell, amount })) }),
     ...(withdrawalStages != null && { withdrawalStages: withdrawalStages.map(stage => {
       const { from, to, amount } = stage ?? {};

@@ -31,7 +31,7 @@ function options(select, values, label, preferred) {
 
 function recommend() {
   const choices = state.id === 'xingfu' ? [...DEFAULT_COLUMNS] : current().defaults.split(' ');
-  if (state.id === 'xingfu' && Number(element('start').value)) choices.splice(choices.indexOf('annuity') + 1, 0, 'lumpSum');
+  if (current().lumpPayout && Number(element('start').value)) choices.splice(choices.indexOf('annuity') + 1, 0, 'lumpSum');
   if (current().account &&
       [...element('withdrawal-stages').querySelectorAll('[data-withdrawal-amount]')].some(input => input.valueAsNumber > 0)) {
     choices.push(current().withdrawals[0].cell);
@@ -70,12 +70,13 @@ function updateChoices(preferredTerm = Number(element('term').value), preferredS
   const { terms } = choicesFor(age, sex, preferredTerm);
   options(element('term'), terms, termLabel, preferredTerm);
   element('term-help').textContent = terms.length ? `可选 ${terms.map(termLabel).join('、')}` : '该年龄和性别在此版本中没有可选缴费期间。';
-  const showStart = state.id === 'xingfu' || current().startChoices;
+  const { lumpPayout, startChoices } = current();
+  const showStart = lumpPayout || startChoices;
   const { starts } = choicesFor(age, sex, Number(element('term').value));
   element('start-field').hidden = !showStart;
-  element('start-label').textContent = state.id === 'xingfu' ? '一次性领取年龄' : '年金起领方式';
-  options(element('start'), state.id === 'xingfu' ? [0, ...starts] : starts,
-    value => state.id === 'xingfu' ? (value ? `${value} 岁` : '未设计') : startLabel(value), preferredStart);
+  element('start-label').textContent = lumpPayout ? '一次性领取年龄' : '年金起领方式';
+  options(element('start'), lumpPayout ? [0, ...starts] : starts,
+    value => lumpPayout ? (value ? `${value} 岁` : '未设计') : startLabel(value), preferredStart);
   message('start-help', showStart ? (starts.length ? '按当前年龄、性别和缴费期间筛选。' : '当前条件没有可选领取年龄。') : '');
   element('generate').disabled = !terms.length || !!current().startChoices && !starts.length;
   updateAmounts();
@@ -294,7 +295,8 @@ function addWithdrawalStage() {
   row.querySelector('input').focus();
 }
 
-productSelect.replaceChildren(...Object.entries(SUITE_PRODUCTS).map(([id, config]) => {
+productSelect.replaceChildren(...Object.keys(hosted ? bundles.products : bundles).map(id => {
+  const config = SUITE_PRODUCTS[id];
   const option = create('option', `${config.short} · ${config.version}`);
   option.value = id;
   return option;

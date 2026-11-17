@@ -1,12 +1,20 @@
 import { calculate, COLUMNS, formatValue, payoutChoices, RISK_NOTES, termsFor } from '../xingfu-plan/calculate.mjs';
 import { Spreadsheet, SheetError, columnNumber } from './spreadsheet.mjs';
+import { calculateXingfuB, XINGFU_B_COLUMNS } from './xingfu-b.mjs';
 
 export const SUITE_PRODUCTS = {
   xingfu: {
-    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3],
+    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3], lumpPayout: true,
     initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 },
     withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
     withdrawalNote: '原表提示，退休前领取不得超过已产生年金及分红累计的 20%。',
+  },
+  'xingfu-b': {
+    title: '泰康幸福享裕B款保险产品计划', short: '幸福享裕 B款', version: '26.11', account: [1, 3], lumpPayout: true,
+    initial: { age: 30, sex: 'F', term: 1, premium: 1000000, rate: 1, dividend: 0, receive: 60 },
+    defaults: 'year age premium annuity yearEndDividend account survival',
+    withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
+    withdrawalNote: '按原表校验，年末年龄男未满 60 岁、女未满 55 岁时，领取不得超过当年领取前万能账户价值的 20%。实际领取条件以万能合同为准。',
   },
   'changle-vip': {
     title: '泰康长乐金生（尊享版）保险产品计划', short: '长乐金生（尊享版）', version: '26.10', account: [1, 4],
@@ -66,6 +74,7 @@ const cleanHeader = text => text.replace(/[\r\n]+/g, ' ').trim();
 
 export function suiteColumns(id, model) {
   if (id === 'xingfu') return COLUMNS;
+  if (id === 'xingfu-b') return XINGFU_B_COLUMNS;
   const product = SUITE_PRODUCTS[id];
   const headers = model.sheets[product.sheet].rows[product.first - 2];
   return headers.slice(0, columnNumber(product.end) + 1).flatMap((label, index) => {
@@ -103,7 +112,7 @@ export function suiteCases(id, model) {
 }
 
 export function suiteChoices(id, model, age, sex, term) {
-  if (id === 'xingfu') return { terms: termsFor(model, age, sex), starts: payoutChoices(model, age, sex, term) };
+  if (SUITE_PRODUCTS[id].lumpPayout) return { terms: termsFor(model, age, sex), starts: payoutChoices(model, age, sex, term) };
   const terms = suiteCases(id, model).get(`${age}${sex}`) ?? new Map();
   return { terms: [...terms.keys()].sort((a, b) => a - b), starts: [...(terms.get(term) ?? [])].filter(Boolean).sort((a, b) => a - b) };
 }
@@ -168,6 +177,10 @@ export function calculateSuite(id, model, input, columns = suiteColumns(id, mode
   const product = SUITE_PRODUCTS[id];
   const withdrawals = annualWithdrawals(input, product);
   if (id === 'xingfu') return { ...calculate(model, { ...input, withdrawals }), input };
+  if (id === 'xingfu-b') {
+    return { ...calculateXingfuB(model, input, withdrawals), productTitle: product.title, shortTitle: product.short,
+      version: product.version, pdfNotes: RISK_NOTES };
+  }
   const { age, sex, term, premium, rate, dividend, start } = input;
   const { terms, starts } = suiteChoices(id, model, age, sex, term);
   if (!terms.includes(term) || product.startChoices && !starts.includes(start)) {
