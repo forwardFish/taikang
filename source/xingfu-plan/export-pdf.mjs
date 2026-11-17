@@ -77,18 +77,18 @@ export async function drawPlanPages(plan, columns, rows, createPage) {
     const { ctx, finish } = createPage(width, height, pageSize);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = '#783d35';
+    ctx.fillStyle = '#632c3c';
     ctx.fillRect(left, 29, 33, 4);
     fit(ctx, title, gridWidth, 29);
     ctx.fillText(title, left, 56);
-    ctx.fillStyle = '#726763';
+    ctx.fillStyle = '#65575d';
     const subtitle = `利益演示试用版　数据版本 ${plan.version ?? '26.07'}　金额单位 元`;
     fit(ctx, subtitle, gridWidth, 12);
     ctx.fillText(subtitle, left, 83);
 
-    ctx.fillStyle = '#f6eee9';
+    ctx.fillStyle = '#f4e9ed';
     ctx.fillRect(left, 99, gridWidth, plan.factor ? 61 : 40);
-    ctx.fillStyle = '#50322e';
+    ctx.fillStyle = '#592434';
     const summary = `${planHeadline(plan)}　总保费 ${formatValue(plan.totalPremium)} 元`;
     fit(ctx, summary, gridWidth - 24, 15);
     ctx.fillText(summary, left + 12, 112);
@@ -102,7 +102,7 @@ export async function drawPlanPages(plan, columns, rows, createPage) {
     }
 
     const widths = pdfColumnWidths(ctx, columns, values, gridWidth);
-    ctx.fillStyle = '#603932';
+    ctx.fillStyle = '#632c3c';
     ctx.fillRect(left, tableTop, gridWidth, headerHeight);
     let x = left;
     for (const [i, column] of columns.entries()) {
@@ -117,7 +117,7 @@ export async function drawPlanPages(plan, columns, rows, createPage) {
     for (const [i, row] of batch.entries()) {
       const y = tableTop + headerHeight + i * rowHeight;
       const highlight = row.lumpSum > 0 || row.year === firstAnnuity || withdrawalYears.has(row.year);
-      ctx.fillStyle = highlight ? '#f3e4d6' : i % 2 ? '#fbf9f7' : '#ffffff';
+      ctx.fillStyle = highlight ? '#f6e9da' : i % 2 ? '#faf6f7' : '#ffffff';
       ctx.fillRect(left, y, gridWidth, rowHeight);
       x = left;
       for (const [j, column] of columns.entries()) {
@@ -126,17 +126,18 @@ export async function drawPlanPages(plan, columns, rows, createPage) {
           x += widths[j];
           continue;
         }
-        ctx.fillStyle = ['survival','lumpSum'].includes(column.key) ? '#783d35' : '#272421';
+        const isAccent = ['survival', 'lumpSum'].includes(column.key) || column.kind === 'withdrawal';
+        ctx.fillStyle = isAccent ? '#592434' : '#292228';
         ctx.textAlign = column.kind === 'integer' ? 'center' : 'right';
         fit(ctx, value, widths[j] - 8, 12, 8);
         ctx.fillText(value, column.kind === 'integer' ? x + widths[j] / 2 : x + widths[j] - 5, y + rowHeight / 2);
         x += widths[j];
       }
     }
-    ctx.strokeStyle = '#e4dad5';
+    ctx.strokeStyle = '#e4d9d9';
     const bottom = tableTop + headerHeight + batch.length * rowHeight;
     ctx.drawRule(left, width - left, bottom);
-    ctx.fillStyle = '#675a54';
+    ctx.fillStyle = '#65575d';
     ctx.textAlign = 'left';
     let noteY = height - 75;
     for (const note of plan.pdfNotes ?? RISK_NOTES) {

@@ -34,11 +34,11 @@
     .suite-table tbody tr.key-year { background: var(--sand); }
     .suite-table-hint { display: none; }
     .suite-withdraw-note { margin: 8px 0; }
-    .withdrawal-stage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; padding: 10px; border: 1px solid var(--line); border-radius: 9px; }
+    .withdrawal-stage { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
     .withdrawal-stage-header { grid-column: 1 / -1; display: flex; justify-content: space-between; align-items: center; gap: 8px; }
-    .withdrawal-stage-header h3 { margin: 0; font-size: 14px; }
-    .withdrawal-stage label { display: grid; align-content: start; gap: 5px; min-width: 0; font-size: 13px; }
-    .withdrawal-stage input { width: 100%; min-width: 0; min-height: 44px; padding: 5px 8px; border: 1px solid var(--line); border-radius: 7px; background: var(--white); color: var(--pine); font-size: 16px; }
+    .withdrawal-stage-header h3 { margin: 0; color: var(--clay); font-size: 14px; }
+    .withdrawal-stage label { display: grid; align-content: start; gap: 5px; min-width: 0; font-size: 13px; font-weight: 600; }
+    .withdrawal-stage input { width: 100%; min-width: 0; height: 41px; padding: 5px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--white); color: var(--ink); font-size: 16px; font-weight: 400; font-variant-numeric: tabular-nums; }
     .suite-table td.withdrawal-value { color: var(--clay); font-weight: 700; }
     @media (max-width: 680px) {
       .wrap { width: min(100% - 24px, 520px); }
@@ -55,6 +55,7 @@
       .suite-withdraw select { grid-area: 1 / 2; }
       .withdrawal-stage { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .withdrawal-stage label:last-child { grid-column: 1 / -1; }
+      .withdrawal-stage input { height: 44px; }
       .form-actions { display: grid; gap: 10px; }
       .form-actions .primary { width: 100%; }
       .preview-toolbar { flex-wrap: wrap; }

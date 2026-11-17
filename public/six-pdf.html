@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="referrer" content="no-referrer">
   <meta name="robots" content="noindex,nofollow">
-  <title>转发计划书 PDF · 六款产品</title>
+  <title>转发计划书 PDF · 计划书工作台</title>
   <style>:root {
   color-scheme: light;
   --paper: #f5f2ed;
@@ -250,7 +250,9 @@ dialog::backdrop { background: #222b2799; }
 .real-site .panel-heading h2, .real-site .display-summary h2 { color: var(--clay); }
 .real-site #sample { margin-left: auto; padding-inline: 4px; text-decoration: underline; text-underline-offset: 3px; }
 .real-site .field > select, .real-site .unit-field, .real-site .suite-product select,
-.real-site .suite-withdraw :is(input, select, button) { border-color: var(--line); background: #fefcfc; }
+.real-site .suite-withdraw :is(input, select, button),
+.real-site .withdrawal-stage input { border-color: var(--line); background: #fefcfc; }
+.real-site .withdrawal-stage { background: #faf6f7; }
 .real-site select {
   appearance: none;
   padding-right: 30px;
@@ -286,6 +288,9 @@ dialog::backdrop { background: #222b2799; }
 }
 
 @media (max-width: 680px) {
+  html:has(.real-site #form-view:not([hidden])) {
+    scroll-padding-bottom: calc(128px + env(safe-area-inset-bottom));
+  }
   .real-site { --topbar-height: 42px; }
   .real-site .suite-heading { margin-bottom: 12px; padding-bottom: 15px; }
   .real-site .suite-product { padding-inline: 6px; }

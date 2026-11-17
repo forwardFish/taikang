@@ -251,6 +251,7 @@ function addWithdrawal() {
 }
 
 function updateWithdrawalStages() {
+  message('form-error', '');
   for (const [index, row] of [...element('withdrawal-stages').children].entries()) {
     const title = `领取阶段 ${index + 1}`;
     row.querySelector('h3').textContent = title;
@@ -313,6 +314,15 @@ for (const button of document.querySelectorAll('[data-premium]')) button.addEven
 });
 element('add-withdrawal').addEventListener('click', addWithdrawal);
 element('add-withdrawal-stage').addEventListener('click', addWithdrawalStage);
+element('withdrawal-stages').addEventListener('input', () => message('form-error', ''));
+element('withdrawal-schedule').addEventListener('focusin', event => {
+  const control = event.target;
+  const actions = element('generate').closest('.form-actions');
+  if (getComputedStyle(actions).position === 'sticky') {
+    const overlap = control.getBoundingClientRect().bottom - actions.getBoundingClientRect().top;
+    if (overlap > 0) window.scrollBy(0, overlap + 8);
+  }
+});
 element('back').addEventListener('click', showForm);
 for (const id of ['form-settings', 'preview-settings']) element(id).addEventListener('click', openSettings);
 element('select-all').addEventListener('click', () => markChoices(state.columns.map(column => column.key)));

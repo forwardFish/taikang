@@ -270,18 +270,18 @@ async function drawPlanPages(plan, columns, rows, createPage) {
     const { ctx, finish } = createPage(width, height, pageSize);
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, width, height);
-    ctx.fillStyle = '#783d35';
+    ctx.fillStyle = '#632c3c';
     ctx.fillRect(left, 29, 33, 4);
     fit(ctx, title, gridWidth, 29);
     ctx.fillText(title, left, 56);
-    ctx.fillStyle = '#726763';
+    ctx.fillStyle = '#65575d';
     const subtitle = `利益演示试用版　数据版本 ${plan.version ?? '26.07'}　金额单位 元`;
     fit(ctx, subtitle, gridWidth, 12);
     ctx.fillText(subtitle, left, 83);
 
-    ctx.fillStyle = '#f6eee9';
+    ctx.fillStyle = '#f4e9ed';
     ctx.fillRect(left, 99, gridWidth, plan.factor ? 61 : 40);
-    ctx.fillStyle = '#50322e';
+    ctx.fillStyle = '#592434';
     const summary = `${planHeadline(plan)}　总保费 ${formatValue(plan.totalPremium)} 元`;
     fit(ctx, summary, gridWidth - 24, 15);
     ctx.fillText(summary, left + 12, 112);
@@ -295,7 +295,7 @@ async function drawPlanPages(plan, columns, rows, createPage) {
     }
 
     const widths = pdfColumnWidths(ctx, columns, values, gridWidth);
-    ctx.fillStyle = '#603932';
+    ctx.fillStyle = '#632c3c';
     ctx.fillRect(left, tableTop, gridWidth, headerHeight);
     let x = left;
     for (const [i, column] of columns.entries()) {
@@ -310,7 +310,7 @@ async function drawPlanPages(plan, columns, rows, createPage) {
     for (const [i, row] of batch.entries()) {
       const y = tableTop + headerHeight + i * rowHeight;
       const highlight = row.lumpSum > 0 || row.year === firstAnnuity || withdrawalYears.has(row.year);
-      ctx.fillStyle = highlight ? '#f3e4d6' : i % 2 ? '#fbf9f7' : '#ffffff';
+      ctx.fillStyle = highlight ? '#f6e9da' : i % 2 ? '#faf6f7' : '#ffffff';
       ctx.fillRect(left, y, gridWidth, rowHeight);
       x = left;
       for (const [j, column] of columns.entries()) {
@@ -319,17 +319,18 @@ async function drawPlanPages(plan, columns, rows, createPage) {
           x += widths[j];
           continue;
         }
-        ctx.fillStyle = ['survival','lumpSum'].includes(column.key) ? '#783d35' : '#272421';
+        const isAccent = ['survival', 'lumpSum'].includes(column.key) || column.kind === 'withdrawal';
+        ctx.fillStyle = isAccent ? '#592434' : '#292228';
         ctx.textAlign = column.kind === 'integer' ? 'center' : 'right';
         fit(ctx, value, widths[j] - 8, 12, 8);
         ctx.fillText(value, column.kind === 'integer' ? x + widths[j] / 2 : x + widths[j] - 5, y + rowHeight / 2);
         x += widths[j];
       }
     }
-    ctx.strokeStyle = '#e4dad5';
+    ctx.strokeStyle = '#e4d9d9';
     const bottom = tableTop + headerHeight + batch.length * rowHeight;
     ctx.drawRule(left, width - left, bottom);
-    ctx.fillStyle = '#675a54';
+    ctx.fillStyle = '#65575d';
     ctx.textAlign = 'left';
     let noteY = height - 75;
     for (const note of plan.pdfNotes ?? RISK_NOTES) {
@@ -629,12 +630,96 @@ function columnNumber(column) {
 }
 
 
+const bLabels = {
+  year: '保单年度', age: '年初年龄', endAge: '年末年龄', premium: '当年保费',
+  dividend: '当年转入红利', yearEndDividend: '当年红利', cash: '主险现金价值',
+  accountCash: '万能现金价值', survival: '退保总利益', death: '身故总利益',
+  simpleRate: '年化单利', irr: '复合收益率',
+};
+const XINGFU_B_COLUMNS = COLUMNS.filter(({ key }) => key !== 'mainDeath').map(column => ({
+  ...column, label: bLabels[column.key] ?? column.label,
+}));
+
+function calculateXingfuB(data, input, withdrawals) {
+  const { age, sex, term, premium, rate, dividend, receive } = normalizePlanInput(input);
+  const selected = caseFor(data, age, sex, term);
+  if (!selected) throw new Error('请选择有效的投保年龄、性别和缴费期间。');
+  if (!(premium > 0) || !Number.isSafeInteger(Math.round(premium * 100))) throw new Error('请输入有效的首年保费。');
+  if (rate < 1 || rate > 3) throw new Error('账户演示利率请输入 1% 至 3%。');
+  if (dividend < 0) throw new Error('请输入有效的分红演示水平。');
+  const [basicRate, factors, sourceRows] = selected;
+  if (receive && !factors[receive]) throw new Error('这个投保组合没有所选领取年龄，请重新选择。');
+  for (const { year } of withdrawals) {
+    if (year > sourceRows.length) throw new Error(`第 ${year} 年超出本方案的演算年度。`);
+  }
+  const withdrawalByYear = new Map(withdrawals.map(({ year, amount }) => [year, amount]));
+  const basic = basicRate * premium / 1000;
+  const factor = receive ? factors[receive] : 0;
+  const lumpAmount = basic * factor;
+  const scale = premium / 10000;
+  let paid = 0;
+  let previousDividend = 0;
+  let previousAccount = 0;
+  let initialTransfers = 0;
+  const payments = [];
+  const rows = sourceRows.map(([sourcePremium, sourceDividend, sourceAnnuity, sourceDeath, sourceCash], index) => {
+    const year = index + 1;
+    const startAge = age + index;
+    const endAge = startAge + 1;
+    const ended = receive > 0 && startAge >= receive;
+    const payment = sourcePremium * scale;
+    const annuity = ended ? 0 : sourceAnnuity * scale;
+    const lumpSum = receive && startAge === receive ? lumpAmount : 0;
+    const yearEndDividend = ended ? 0 : sourceDividend * scale * dividend / 100;
+    const cash = ended ? 0 : sourceCash * scale;
+    const transfer = annuity + lumpSum + previousDividend;
+    if (year <= 6) initialTransfers += transfer;
+    const bonus = year < 6 ? 0 : (year === 6 ? initialTransfers : transfer) * data.transferFee;
+    // 26.11 «利益演示» Y 列在当年扣除 V 列领取；L 列输入校验使用扣减前的余额。
+    const beforeWithdrawal = (previousAccount + transfer - transfer * data.transferFee) * (1 + rate / 100) + bonus;
+    const withdrawal = withdrawalByYear.get(year) ?? 0;
+    const limit = beforeWithdrawal * (endAge < (sex === 'M' ? 60 : 55) ? 0.2 : 1);
+    if (withdrawal > limit + 1e-7) {
+      throw new Error(`第 ${year} 年的部分领取金额超过原表可演算上限（${limit.toLocaleString('zh-CN', { maximumFractionDigits: 2 })} 元）。`);
+    }
+    const account = Math.max(0, beforeWithdrawal - withdrawal);
+    const accountCash = account * (1 - data.surrenderFees[Math.min(index, data.surrenderFees.length - 1)]);
+    const nextBenefit = ended ? 0 : receive === endAge ? basic : (sourceRows[index + 1]?.[2] ?? 0) * scale;
+    const survival = cash + accountCash + yearEndDividend + nextBenefit;
+    paid += payment;
+    payments.push(payment);
+    const simpleDenominator = premium * (year * term - term * (term - 1) / 2);
+    const row = {
+      year, age: startAge, endAge, premium: payment, paid, annuity, lumpSum,
+      dividend: previousDividend, yearEndDividend, cash, transfer, bonus, withdrawal, account, accountCash, survival,
+      death: account + yearEndDividend + (ended ? 0 : sourceDeath * scale),
+      simpleRate: survival >= paid && simpleDenominator ? (survival - paid) / simpleDenominator : null,
+      irr: survival > paid ? annualizedReturn(payments, survival) : null,
+    };
+    previousDividend = yearEndDividend;
+    previousAccount = account;
+    return row;
+  });
+  if (!rows.every(row => Object.values(row).every(value => value === null || Number.isFinite(value) && Math.abs(value) <= Number.MAX_SAFE_INTEGER))) {
+    throw new Error('这组输入超出了网页可演算的数值范围。');
+  }
+  return { input, rows, basic, factor, lumpAmount, totalPremium: paid };
+}
+
+
 const SUITE_PRODUCTS = {
   xingfu: {
-    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3],
+    title: '泰康幸福享裕保险产品计划', short: '幸福享裕', version: '26.07', account: [1, 3], lumpPayout: true,
     initial: { age: 16, sex: 'M', term: 3, premium: 1000000, rate: 3, dividend: 100, receive: 0 },
     withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
     withdrawalNote: '原表提示，退休前领取不得超过已产生年金及分红累计的 20%。',
+  },
+  'xingfu-b': {
+    title: '泰康幸福享裕B款保险产品计划', short: '幸福享裕 B款', version: '26.11', account: [1, 3], lumpPayout: true,
+    initial: { age: 30, sex: 'F', term: 1, premium: 1000000, rate: 1, dividend: 0, receive: 60 },
+    defaults: 'year age premium annuity yearEndDividend account survival',
+    withdrawals: [{ cell: 'withdrawal', label: '万能账户部分领取' }],
+    withdrawalNote: '按原表校验，年末年龄男未满 60 岁、女未满 55 岁时，领取不得超过当年领取前万能账户价值的 20%。实际领取条件以万能合同为准。',
   },
   'changle-vip': {
     title: '泰康长乐金生（尊享版）保险产品计划', short: '长乐金生（尊享版）', version: '26.10', account: [1, 4],
@@ -694,6 +779,7 @@ const cleanHeader = text => text.replace(/[\r\n]+/g, ' ').trim();
 
 function suiteColumns(id, model) {
   if (id === 'xingfu') return COLUMNS;
+  if (id === 'xingfu-b') return XINGFU_B_COLUMNS;
   const product = SUITE_PRODUCTS[id];
   const headers = model.sheets[product.sheet].rows[product.first - 2];
   return headers.slice(0, columnNumber(product.end) + 1).flatMap((label, index) => {
@@ -731,7 +817,7 @@ function suiteCases(id, model) {
 }
 
 function suiteChoices(id, model, age, sex, term) {
-  if (id === 'xingfu') return { terms: termsFor(model, age, sex), starts: payoutChoices(model, age, sex, term) };
+  if (SUITE_PRODUCTS[id].lumpPayout) return { terms: termsFor(model, age, sex), starts: payoutChoices(model, age, sex, term) };
   const terms = suiteCases(id, model).get(`${age}${sex}`) ?? new Map();
   return { terms: [...terms.keys()].sort((a, b) => a - b), starts: [...(terms.get(term) ?? [])].filter(Boolean).sort((a, b) => a - b) };
 }
@@ -796,6 +882,10 @@ function calculateSuite(id, model, input, columns = suiteColumns(id, model)) {
   const product = SUITE_PRODUCTS[id];
   const withdrawals = annualWithdrawals(input, product);
   if (id === 'xingfu') return { ...calculate(model, { ...input, withdrawals }), input };
+  if (id === 'xingfu-b') {
+    return { ...calculateXingfuB(model, input, withdrawals), productTitle: product.title, shortTitle: product.short,
+      version: product.version, pdfNotes: RISK_NOTES };
+  }
   const { age, sex, term, premium, rate, dividend, start } = input;
   const { terms, starts } = suiteChoices(id, model, age, sex, term);
   if (!terms.includes(term) || product.startChoices && !starts.includes(start)) {
@@ -940,7 +1030,7 @@ function suitePlan({ product, input, columns: keys }, wantsPdf) {
     throw new Error('请检查万能账户领取阶段。');
   }
   const values = {
-    ...(product === 'xingfu' ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
+    ...(SUITE_PRODUCTS[product].lumpPayout ? normalizePlanInput(input) : { age, sex, term, premium, rate, dividend, start }),
     ...(withdrawals != null && { withdrawals: withdrawals.map(({ year, cell, amount }) => ({ year, cell, amount })) }),
     ...(withdrawalStages != null && { withdrawalStages: withdrawalStages.map(stage => {
       const { from, to, amount } = stage ?? {};
